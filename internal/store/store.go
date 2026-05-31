@@ -324,6 +324,30 @@ func (s *Store) UpdateContentBody(id int64, body string) error {
 	return err
 }
 
+// UpdateContentSEO replaces the seo_meta JSON of a content row.
+func (s *Store) UpdateContentSEO(id int64, seoMeta string) error {
+	_, err := s.db.Exec(`UPDATE content SET seo_meta=?, updated_at=? WHERE id=?`,
+		jsonOrEmpty(seoMeta), time.Now().UTC(), id)
+	return err
+}
+
+// SetSchedule sets (or clears, when t is nil) the publish date of a content
+// row and derives its status: "draft" when unscheduled, "scheduled" for a
+// future date, or "published" once the date has passed.
+func (s *Store) SetSchedule(id int64, t *time.Time, now time.Time) error {
+	status := "draft"
+	if t != nil {
+		if t.After(now) {
+			status = "scheduled"
+		} else {
+			status = "published"
+		}
+	}
+	_, err := s.db.Exec(`UPDATE content SET scheduled_for=?, status=?, updated_at=? WHERE id=?`,
+		nullableTime(t), status, now, id)
+	return err
+}
+
 // ListContent returns all content rows, newest first.
 func (s *Store) ListContent() ([]Content, error) {
 	rows, err := s.db.Query(`
@@ -374,6 +398,13 @@ func nullableInt(v int64) any {
 		return nil
 	}
 	return v
+}
+
+func nullableTime(t *time.Time) any {
+	if t == nil {
+		return nil
+	}
+	return *t
 }
 
 func jsonOrEmpty(s string) string {

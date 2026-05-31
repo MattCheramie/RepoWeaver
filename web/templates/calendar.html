@@ -1,0 +1,57 @@
+{{define "content"}}
+<section class="panel">
+  <h1>Editorial Calendar</h1>
+  <p class="muted">Drag a draft onto a day to schedule it; drag it to “Unscheduled” to clear. Past dates are marked published.</p>
+  <div id="calendar-root" data-month="{{.Calendar.MonthParam}}">
+    {{template "calendar-root" .}}
+  </div>
+</section>
+<script src="/static/js/calendar.js" defer></script>
+{{end}}
+
+{{define "calendar-root"}}
+<div class="cal-header">
+  <a class="btn-link" hx-get="/calendar?month={{.Calendar.PrevParam}}" hx-target="#calendar-root" hx-swap="innerHTML" href="/calendar?month={{.Calendar.PrevParam}}">← Prev</a>
+  <strong>{{.Calendar.MonthLabel}}</strong>
+  <a class="btn-link" hx-get="/calendar?month={{.Calendar.NextParam}}" hx-target="#calendar-root" hx-swap="innerHTML" href="/calendar?month={{.Calendar.NextParam}}">Next →</a>
+</div>
+
+<div class="cal-layout">
+  <div class="cal-main">
+    <table class="calendar" data-month="{{.Calendar.MonthParam}}">
+      <thead>
+        <tr>{{range .Calendar.Weekdays}}<th>{{.}}</th>{{end}}</tr>
+      </thead>
+      <tbody>
+        {{range .Calendar.Weeks}}
+        <tr>
+          {{range .}}
+          <td class="cal-day {{if not .InMonth}}cal-out{{end}} {{if .Today}}cal-today{{end}}"
+              data-date="{{.Date}}" ondragover="calAllow(event)" ondrop="calDrop(event)">
+            <span class="cal-num">{{.Day}}</span>
+            {{range .Items}}
+            <div class="cal-item badge-{{.Status}}" draggable="true" data-id="{{.ID}}" ondragstart="calDrag(event)">
+              <a href="/content/{{.ID}}">{{.Title}}</a>
+            </div>
+            {{end}}
+          </td>
+          {{end}}
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  <aside class="cal-side" data-date="" ondragover="calAllow(event)" ondrop="calDrop(event)">
+    <h4>Unscheduled drafts</h4>
+    {{range .Calendar.Unscheduled}}
+    <div class="cal-item" draggable="true" data-id="{{.ID}}" ondragstart="calDrag(event)">
+      <a href="/content/{{.ID}}">{{.Title}}</a>
+    </div>
+    {{else}}
+    <p class="muted">All content is scheduled.</p>
+    {{end}}
+  </aside>
+</div>
+<div id="cal-status" class="hint"></div>
+{{end}}

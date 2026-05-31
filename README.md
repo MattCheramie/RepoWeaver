@@ -62,17 +62,19 @@ changes).
   SQLite (total capture, including bots and unresolved issues).
 - **Phase 2 — Analysis:** An LLM clusters related items into story narratives and
   runs a salvage pass over unresolved issues.
-- **Phase 3/4 (basic) — Hub & Generation:** A Knowledge Hub lists clusters; each
-  can be generated into Markdown content with a structured SEO-metadata stub.
-- **Phase 5 (basic) — Library:** Browse, preview, edit, and download generated
-  `.md` files.
+- **Phase 3 — Knowledge Hub:** Lists clusters per repo and drives generation.
+- **Phase 4 — Generation & SEO:** Generates Markdown content, plus an SEO toolkit
+  with local keyword-density analysis, URL-slug suggestions, AI-assisted
+  meta-description and semantic-tag generation, and YAML-frontmatter export.
+- **Phase 5 — Library & Editorial Calendar:** Browse, preview, edit, and download
+  generated `.md` files (with or without frontmatter); a month-view calendar with
+  drag-and-drop scheduling that tracks draft → scheduled → published status.
 - **Pluggable LLM:** Anthropic Claude (default), OpenAI, and Google Gemini, plus
   a keyless `mock` provider so the whole app runs offline for development/tests.
 
-**Stubbed (navigable placeholder pages) for later phases**
-- Phase 4 full SEO toolkit (keyword density, slug/meta/tag generation).
-- Phase 5 editorial calendar with drag-and-drop scheduling.
-- Phase 6 Google Analytics 4 integration and performance dashboard.
+**Stubbed (navigable placeholder page) for the final phase**
+- Phase 6 Google Analytics 4 integration and performance dashboard (requires
+  GA4 OAuth credentials and outbound network access).
 
 ## 🏃 Running Locally
 Requires Go 1.25+ (no CGO — uses the pure-Go `modernc.org/sqlite` driver).
@@ -97,5 +99,5 @@ make build   # build ./bin/repoweaver
 **Project layout:** `main.go` (entrypoint + embedded web assets) ·
 `internal/config` · `internal/store` (SQLite) · `internal/ingest` (GitHub +
 files) · `internal/llm` (pluggable providers) · `internal/analyze` (clustering +
-generation) · `internal/server` (HTTP + HTMX handlers) · `web/` (templates +
-static assets).
+generation) · `internal/seo` (SEO toolkit) · `internal/server` (HTTP + HTMX
+handlers, editorial calendar) · `web/` (templates + static assets).

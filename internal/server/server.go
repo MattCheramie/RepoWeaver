@@ -18,7 +18,7 @@ import (
 // is parsed together with layout.html into its own template set so the
 // "content" definitions don't collide.
 var pageTemplates = []string{
-	"repos.html", "hub.html", "library.html", "content.html", "stub.html",
+	"repos.html", "hub.html", "library.html", "content.html", "calendar.html", "stub.html",
 }
 
 // Server holds dependencies shared by handlers.
@@ -71,6 +71,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /library", s.handleLibrary)
 	mux.HandleFunc("GET /content/{id}", s.handleContent)
 	mux.HandleFunc("POST /content/{id}", s.handleSaveContent)
+	mux.HandleFunc("POST /content/{id}/seo", s.handleRegenerateSEO)
+	mux.HandleFunc("POST /content/{id}/schedule", s.handleSchedule)
 	mux.HandleFunc("GET /content/{id}/download", s.handleDownload)
 
 	mux.HandleFunc("GET /calendar", s.handleCalendar)
