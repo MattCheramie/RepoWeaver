@@ -1,0 +1,24 @@
+{{define "content"}}
+<section class="panel">
+  <h1>Content Library</h1>
+  <p class="muted">All generated content. Preview, edit, and download the raw Markdown.</p>
+  {{if .Content}}
+  <table class="grid">
+    <thead><tr><th>Title</th><th>Format</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+      {{range .Content}}
+      <tr>
+        <td><a href="/content/{{.ID}}">{{.Title}}</a></td>
+        <td><span class="chip">{{.Format}}</span></td>
+        <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
+        <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+        <td><a class="btn-link" href="/content/{{.ID}}/download">⬇ Download .md</a></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">No content yet. Open a repo's Hub, analyze it, then generate a piece.</p>
+  {{end}}
+</section>
+{{end}}

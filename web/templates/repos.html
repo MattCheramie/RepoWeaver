@@ -1,0 +1,32 @@
+{{define "content"}}
+<section class="panel">
+  <h1>Repositories</h1>
+  <p class="muted">Point RepoWeaver at a public GitHub repository to ingest its history and documentation.</p>
+  <form hx-post="/repos" hx-target="#repo-result" hx-disabled-elt="find button" class="repo-form">
+    <input type="text" name="repo" placeholder="owner/name  (e.g. octocat/Hello-World)" required>
+    <button type="submit">Add &amp; Ingest</button>
+  </form>
+  <div id="repo-result" class="hint"></div>
+</section>
+
+<section class="panel">
+  <h2>Tracked repositories</h2>
+  {{if .Repos}}
+  <table class="grid">
+    <thead><tr><th>Repository</th><th>Status</th><th>Last ingested</th><th></th></tr></thead>
+    <tbody>
+      {{range .Repos}}
+      <tr>
+        <td><strong>{{.FullName}}</strong></td>
+        <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
+        <td>{{if .LastIngestedAt}}{{.LastIngestedAt.Format "2006-01-02 15:04"}}{{else}}—{{end}}</td>
+        <td><a class="btn-link" href="/repos/{{.ID}}/hub">Open Hub →</a></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">No repositories yet. Add one above to get started.</p>
+  {{end}}
+</section>
+{{end}}

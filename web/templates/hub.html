@@ -1,0 +1,48 @@
+{{define "content"}}
+<section class="panel">
+  <a class="btn-link" href="/">← All repos</a>
+  <h1>{{.Repo.FullName}}</h1>
+  <p>
+    <span class="badge badge-{{.Repo.Status}}">{{.Repo.Status}}</span>
+    <span class="muted">{{.Total}} items ingested</span>
+  </p>
+  <div class="counts">
+    {{range $k, $v := .Counts}}<span class="chip">{{$k}}: {{$v}}</span>{{end}}
+  </div>
+  <form hx-post="/repos/{{.Repo.ID}}/analyze" hx-target="#clusters" hx-disabled-elt="find button">
+    <button type="submit">🧠 Analyze &amp; Cluster</button>
+    <span class="muted">Maps the problem-solving narrative and groups related items.</span>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Knowledge Hub — Clusters</h2>
+  <div id="clusters">
+    {{template "clusters" .}}
+  </div>
+</section>
+{{end}}
+
+{{define "clusters"}}
+{{if .Clusters}}
+<div class="cluster-list">
+  {{range .Clusters}}
+  <article class="cluster">
+    <header>
+      <h3>{{.Title}}</h3>
+      <span class="chip">{{.TargetFormat}}</span>
+      <span class="muted">{{.ItemCount}} items</span>
+    </header>
+    <p>{{.Summary}}</p>
+    {{if .Narrative}}<p class="muted">{{.Narrative}}</p>{{end}}
+    <form hx-post="/clusters/{{.ID}}/generate" hx-target="#gen-{{.ID}}" hx-disabled-elt="find button">
+      <button type="submit">✍️ Generate {{.TargetFormat}}</button>
+      <span id="gen-{{.ID}}" class="hint"></span>
+    </form>
+  </article>
+  {{end}}
+</div>
+{{else}}
+<p class="muted">No clusters yet. Click <strong>Analyze &amp; Cluster</strong> above.</p>
+{{end}}
+{{end}}

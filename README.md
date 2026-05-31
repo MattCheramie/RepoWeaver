@@ -49,3 +49,53 @@ Closing the loop by tracking how the generated content actually performs in the 
  3. **Schedule:** Open the Editorial Calendar and drag the newly generated post onto a target publication date.
  4. **Publish / Export:** Download the optimized Markdown file from the Content Library to publish to your blog or static site.
  5. **Track:** If GA is connected, check the Analytics Dashboard a week later to see how much traffic the new post is driving.
+
+## 🧪 Current Status (Walking-Skeleton MVP)
+This repository currently implements an end-to-end **walking skeleton** of the
+loop above: **ingest → analyze → generate → library → export**. It runs as a
+plain local web server (the Wails native shell can wrap it later without backend
+changes).
+
+**Implemented**
+- **Phase 1 — Ingestion:** GitHub PRs, issues, comments, and commit messages via
+  the GitHub API, plus static `CHANGELOG`, `docs/`, and `.pdf` files. Cached in
+  SQLite (total capture, including bots and unresolved issues).
+- **Phase 2 — Analysis:** An LLM clusters related items into story narratives and
+  runs a salvage pass over unresolved issues.
+- **Phase 3/4 (basic) — Hub & Generation:** A Knowledge Hub lists clusters; each
+  can be generated into Markdown content with a structured SEO-metadata stub.
+- **Phase 5 (basic) — Library:** Browse, preview, edit, and download generated
+  `.md` files.
+- **Pluggable LLM:** Anthropic Claude (default), OpenAI, and Google Gemini, plus
+  a keyless `mock` provider so the whole app runs offline for development/tests.
+
+**Stubbed (navigable placeholder pages) for later phases**
+- Phase 4 full SEO toolkit (keyword density, slug/meta/tag generation).
+- Phase 5 editorial calendar with drag-and-drop scheduling.
+- Phase 6 Google Analytics 4 integration and performance dashboard.
+
+## 🏃 Running Locally
+Requires Go 1.25+ (no CGO — uses the pure-Go `modernc.org/sqlite` driver).
+
+```bash
+# Run with zero setup using the keyless mock LLM provider:
+make run            # serves http://localhost:8080
+
+# Or with a real provider and a GitHub token (recommended to avoid rate limits):
+cp .env.example .env   # then edit it, or export the vars directly
+GITHUB_TOKEN=ghp_xxx LLM_PROVIDER=claude LLM_API_KEY=sk-ant-xxx make run
+```
+
+Configuration is via environment variables — see [`.env.example`](.env.example).
+
+```bash
+make test    # full test suite (runs offline with the mock provider)
+make vet     # go vet
+make build   # build ./bin/repoweaver
+```
+
+**Project layout:** `main.go` (entrypoint + embedded web assets) ·
+`internal/config` · `internal/store` (SQLite) · `internal/ingest` (GitHub +
+files) · `internal/llm` (pluggable providers) · `internal/analyze` (clustering +
+generation) · `internal/server` (HTTP + HTMX handlers) · `web/` (templates +
+static assets).

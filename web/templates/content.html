@@ -1,0 +1,18 @@
+{{define "content"}}
+<section class="panel">
+  <a class="btn-link" href="/library">← Library</a>
+  <h1>{{.Content.Title}}</h1>
+  <p>
+    <span class="chip">{{.Content.Format}}</span>
+    <span class="badge badge-{{.Content.Status}}">{{.Content.Status}}</span>
+    <a class="btn-link" href="/content/{{.Content.ID}}/download">⬇ Download .md</a>
+  </p>
+  <form hx-post="/content/{{.Content.ID}}" hx-target="#save-result" hx-disabled-elt="find button" class="editor">
+    <textarea name="body" rows="24" spellcheck="false">{{.Content.Body}}</textarea>
+    <div class="editor-actions">
+      <button type="submit">💾 Save</button>
+      <span id="save-result" class="hint"></span>
+    </div>
+  </form>
+</section>
+{{end}}

@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="panel">
+  <h1>{{.Heading}}</h1>
+  <p class="muted">{{.Blurb}}</p>
+  <div class="stub-card">
+    <h3>🚧 Coming soon</h3>
+    <ul>
+      {{range .Planned}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+</section>
+{{end}}
