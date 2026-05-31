@@ -1,0 +1,25 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RepoWeaver — {{.Title}}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🧵 RepoWeaver</div>
+    <nav>
+      <a href="/" class="{{if eq .Active "repos"}}active{{end}}">Repos</a>
+      <a href="/library" class="{{if eq .Active "library"}}active{{end}}">Library</a>
+      <a href="/calendar" class="{{if eq .Active "calendar"}}active{{end}}">Calendar</a>
+      <a href="/analytics" class="{{if eq .Active "analytics"}}active{{end}}">Analytics</a>
+    </nav>
+    <div class="provider">LLM: {{.Provider}}</div>
+  </header>
+  <main>
+    {{template "content" .}}
+  </main>
+</body>
+</html>{{end}}
