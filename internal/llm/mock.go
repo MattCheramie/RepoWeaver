@@ -19,13 +19,28 @@ func NewMock() *Mock { return &Mock{} }
 // Name implements Provider.
 func (m *Mock) Name() string { return "mock" }
 
-// Complete implements Provider. It detects whether the caller wants JSON
-// (clustering) or prose (content generation) based on the system prompt.
+// Complete implements Provider. It detects whether the caller wants SEO JSON,
+// clustering JSON, or prose (content generation) based on the system prompt.
 func (m *Mock) Complete(_ context.Context, system, prompt string) (string, error) {
-	if strings.Contains(strings.ToLower(system), "json") {
+	low := strings.ToLower(system)
+	switch {
+	case strings.Contains(low, "meta_description"):
+		return m.seoJSON(), nil
+	case strings.Contains(low, "json"):
 		return m.clusterJSON(prompt), nil
+	default:
+		return m.prose(prompt), nil
 	}
-	return m.prose(prompt), nil
+}
+
+// seoJSON returns a small, valid SEO metadata document.
+func (m *Mock) seoJSON() string {
+	doc := map[string]any{
+		"meta_description": "A mock-generated summary. Configure a real LLM provider for tailored SEO copy.",
+		"tags":             []string{"mock", "repoweaver", "documentation"},
+	}
+	b, _ := json.Marshal(doc)
+	return string(b)
 }
 
 // clusterJSON returns a small, valid clusters JSON document. It always

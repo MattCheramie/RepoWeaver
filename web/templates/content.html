@@ -6,6 +6,7 @@
     <span class="chip">{{.Content.Format}}</span>
     <span class="badge badge-{{.Content.Status}}">{{.Content.Status}}</span>
     <a class="btn-link" href="/content/{{.Content.ID}}/download">⬇ Download .md</a>
+    <a class="btn-link" href="/content/{{.Content.ID}}/download?fm=1">⬇ Download with frontmatter</a>
   </p>
   <form hx-post="/content/{{.Content.ID}}" hx-target="#save-result" hx-disabled-elt="find button" class="editor">
     <textarea name="body" rows="24" spellcheck="false">{{.Content.Body}}</textarea>
@@ -15,4 +16,40 @@
     </div>
   </form>
 </section>
+
+<section class="panel" id="seo-panel">
+  {{template "seo-panel" .}}
+</section>
+{{end}}
+
+{{define "seo-panel"}}
+<h2>🔍 SEO Toolkit</h2>
+<form hx-post="/content/{{.Content.ID}}/seo" hx-target="#seo-panel" hx-swap="innerHTML" hx-disabled-elt="find button">
+  <button type="submit">♻ Recompute SEO</button>
+  <span class="muted">AI-assisted meta description &amp; tags; keyword density computed locally.</span>
+</form>
+
+<div class="seo-grid">
+  <div>
+    <h4>Meta description</h4>
+    <p class="seo-meta">{{if .SEO.MetaDescription}}{{.SEO.MetaDescription}}{{else}}<span class="muted">— not set —</span>{{end}}</p>
+    <h4>URL slug</h4>
+    <p><code>{{.SEO.Slug}}</code></p>
+    <h4>Semantic tags</h4>
+    <p>{{range .SEO.Tags}}<span class="chip">{{.}}</span>{{else}}<span class="muted">— none —</span>{{end}}</p>
+  </div>
+  <div>
+    <h4>Keyword density</h4>
+    {{if .Keywords}}
+    <table class="grid compact">
+      <thead><tr><th>Keyword</th><th>Count</th><th>Density</th></tr></thead>
+      <tbody>
+        {{range .Keywords}}
+        <tr><td>{{.Word}}</td><td>{{.Count}}</td><td>{{printf "%.1f%%" .Density}}</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}<p class="muted">No keywords yet.</p>{{end}}
+  </div>
+</div>
 {{end}}

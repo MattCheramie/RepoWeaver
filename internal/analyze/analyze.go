@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mattcheramie/repoweaver/internal/llm"
+	"github.com/mattcheramie/repoweaver/internal/seo"
 	"github.com/mattcheramie/repoweaver/internal/store"
 )
 
@@ -128,14 +129,29 @@ func (a *Analyzer) Generate(ctx context.Context, clusterID int64) (int64, error)
 	if title == "" {
 		title = cluster.Title
 	}
+	meta := seo.Generate(ctx, a.provider, title, body)
 	return a.store.CreateContent(store.Content{
 		ClusterID: cluster.ID,
 		RepoID:    cluster.RepoID,
 		Title:     title,
 		Format:    cluster.TargetFormat,
 		Body:      body,
-		SEOMeta:   buildSEOStub(title),
+		SEOMeta:   meta.JSON(),
 	})
+}
+
+// RegenerateSEO recomputes SEO metadata for an existing content row from its
+// current body and persists it.
+func (a *Analyzer) RegenerateSEO(ctx context.Context, contentID int64) (seo.Meta, error) {
+	c, err := a.store.ContentByID(contentID)
+	if err != nil {
+		return seo.Meta{}, err
+	}
+	meta := seo.Generate(ctx, a.provider, c.Title, c.Body)
+	if err := a.store.UpdateContentSEO(contentID, meta.JSON()); err != nil {
+		return seo.Meta{}, err
+	}
+	return meta, nil
 }
 
 // buildPrompt renders numbered items for the clustering prompt.
@@ -194,28 +210,4 @@ func firstHeading(md string) string {
 		}
 	}
 	return ""
-}
-
-// buildSEOStub returns a minimal SEO metadata JSON. Full SEO toolkit is a
-// later phase; this leaves a structured placeholder.
-func buildSEOStub(title string) string {
-	slug := strings.ToLower(title)
-	slug = strings.Map(func(r rune) rune {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			return r
-		case r == ' ' || r == '-' || r == '_':
-			return '-'
-		default:
-			return -1
-		}
-	}, slug)
-	meta := map[string]any{
-		"meta_description": "",
-		"keywords":         []string{},
-		"slug":             strings.Trim(slug, "-"),
-		"tags":             []string{},
-	}
-	b, _ := json.Marshal(meta)
-	return string(b)
 }

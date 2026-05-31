@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mattcheramie/repoweaver/internal/config"
 	"github.com/mattcheramie/repoweaver/internal/store"
@@ -118,10 +119,104 @@ func TestStubPages(t *testing.T) {
 	ts := httptest.NewServer(srv.Handler())
 	defer ts.Close()
 
-	for _, path := range []string{"/calendar", "/analytics"} {
-		if body := get(t, ts, path); !strings.Contains(body, "Coming soon") {
-			t.Fatalf("%s not rendered as stub:\n%s", path, body)
-		}
+	if body := get(t, ts, "/analytics"); !strings.Contains(body, "Coming soon") {
+		t.Fatalf("/analytics not rendered as stub:\n%s", body)
+	}
+}
+
+// seedContent creates a repo, cluster, and one generated content row.
+func seedContent(t *testing.T, st *store.Store) store.Content {
+	t.Helper()
+	repo, _ := st.AddRepo("acme", "widget")
+	id, err := st.CreateContent(store.Content{
+		RepoID: repo.ID, Title: "Caching Layer Guide", Format: store.FormatBlog,
+		Body: "# Caching Layer Guide\n\nThe caching layer caches results. Caching is fast and reliable.",
+	})
+	if err != nil {
+		t.Fatalf("seed content: %v", err)
+	}
+	c, _ := st.ContentByID(id)
+	return c
+}
+
+func TestSEOToolkitHTTP(t *testing.T) {
+	srv, st := newTestServer(t)
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+	c := seedContent(t, st)
+
+	// Content page shows the SEO toolkit and keyword density.
+	page := get(t, ts, "/content/"+itoa64(c.ID))
+	if !strings.Contains(page, "SEO Toolkit") || !strings.Contains(page, "Keyword density") {
+		t.Fatalf("content page missing SEO panel:\n%s", page)
+	}
+
+	// Recompute SEO returns the panel with a slug and (mock) tags.
+	panel := post(t, ts, "/content/"+itoa64(c.ID)+"/seo", nil)
+	if !strings.Contains(panel, "caching-layer-guide") {
+		t.Fatalf("recomputed SEO missing slug:\n%s", panel)
+	}
+	updated, _ := st.ContentByID(c.ID)
+	if !strings.Contains(updated.SEOMeta, "caching-layer-guide") {
+		t.Fatalf("SEO not persisted: %s", updated.SEOMeta)
+	}
+
+	// Frontmatter download prepends YAML.
+	resp, err := http.Get(ts.URL + "/content/" + itoa64(c.ID) + "/download?fm=1")
+	if err != nil {
+		t.Fatalf("download fm: %v", err)
+	}
+	defer resp.Body.Close()
+	md, _ := io.ReadAll(resp.Body)
+	if !strings.HasPrefix(string(md), "---\n") || !strings.Contains(string(md), "slug:") {
+		t.Fatalf("expected frontmatter, got:\n%.200s", md)
+	}
+}
+
+func TestCalendarHTTP(t *testing.T) {
+	srv, st := newTestServer(t)
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+	c := seedContent(t, st)
+
+	// Calendar page renders and lists the unscheduled draft.
+	page := get(t, ts, "/calendar")
+	if !strings.Contains(page, "Editorial Calendar") || !strings.Contains(page, "Caching Layer Guide") {
+		t.Fatalf("calendar missing draft:\n%s", page)
+	}
+
+	// Schedule the content for a future date; response is the calendar fragment.
+	future := time.Now().UTC().AddDate(0, 0, 3)
+	month := future.Format("2006-01")
+	frag := post(t, ts, "/content/"+itoa64(c.ID)+"/schedule",
+		url.Values{"date": {future.Format("2006-01-02")}, "month": {month}})
+	if !strings.Contains(frag, "Caching Layer Guide") {
+		t.Fatalf("schedule response missing item:\n%s", frag)
+	}
+
+	updated, _ := st.ContentByID(c.ID)
+	if updated.ScheduledFor == nil || updated.Status != "scheduled" {
+		t.Fatalf("expected scheduled status, got %s / %v", updated.Status, updated.ScheduledFor)
+	}
+
+	// HTMX month navigation returns just the fragment (no <html> shell).
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/calendar?month="+month, nil)
+	req.Header.Set("HX-Request", "true")
+	hxResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("hx calendar: %v", err)
+	}
+	defer hxResp.Body.Close()
+	body, _ := io.ReadAll(hxResp.Body)
+	if strings.Contains(string(body), "<html") {
+		t.Fatalf("HX request should return a fragment, got full page")
+	}
+
+	// Unschedule by posting an empty date.
+	post(t, ts, "/content/"+itoa64(c.ID)+"/schedule", url.Values{"date": {""}, "month": {month}})
+	cleared, _ := st.ContentByID(c.ID)
+	if cleared.ScheduledFor != nil || cleared.Status != "draft" {
+		t.Fatalf("expected unscheduled draft, got %s / %v", cleared.Status, cleared.ScheduledFor)
 	}
 }
 

@@ -6,7 +6,9 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/mattcheramie/repoweaver/internal/seo"
 	"github.com/mattcheramie/repoweaver/internal/store"
 )
 
@@ -22,6 +24,9 @@ type pageData struct {
 	Total    int
 	Clusters []store.Cluster
 	Content  any
+	SEO      seo.Meta
+	Keywords []seo.KeywordStat
+	Calendar *calendarView
 	Heading  string
 	Blurb    string
 	Planned  []string
@@ -47,10 +52,20 @@ func (s *Server) render(w http.ResponseWriter, page string, data pageData) {
 	_, _ = buf.WriteTo(w)
 }
 
-// renderFragment renders a named sub-template (e.g. an HTMX partial) defined in
-// the given page's template set.
+// renderFragment renders a named sub-template defined in hub.html (kept for the
+// clusters partial).
 func (s *Server) renderFragment(w http.ResponseWriter, fragment string, data pageData) {
-	t := s.pages["hub.html"] // fragments currently live in hub.html
+	s.renderNamed(w, "hub.html", fragment, data)
+}
+
+// renderNamed renders a named sub-template (HTMX partial) from a specific
+// page's template set.
+func (s *Server) renderNamed(w http.ResponseWriter, page, fragment string, data pageData) {
+	t, ok := s.pages[page]
+	if !ok {
+		http.Error(w, "unknown page: "+page, http.StatusInternalServerError)
+		return
+	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, fragment, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -186,7 +201,33 @@ func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 	}
 	d := s.base(c.Title, "library")
 	d.Content = c
+	d.SEO = seo.Parse(c.SEOMeta)
+	d.Keywords = seo.KeywordDensity(c.Body, 10)
 	s.render(w, "content.html", d)
+}
+
+// handleRegenerateSEO recomputes and persists SEO metadata, returning the SEO
+// panel fragment for HTMX swap.
+func (s *Server) handleRegenerateSEO(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	meta, err := s.analyzer.RegenerateSEO(r.Context(), id)
+	if err != nil {
+		s.hint(w, "SEO update failed: "+err.Error(), true)
+		return
+	}
+	c, err := s.store.ContentByID(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	d := s.base("", "library")
+	d.Content = c
+	d.SEO = meta
+	d.Keywords = seo.KeywordDensity(c.Body, 10)
+	s.renderNamed(w, "content.html", "seo-panel", d)
 }
 
 func (s *Server) handleSaveContent(w http.ResponseWriter, r *http.Request) {
@@ -211,25 +252,44 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	body := c.Body
+	// ?fm=1 prepends YAML frontmatter generated from the SEO metadata.
+	if r.URL.Query().Get("fm") == "1" {
+		body = seo.Parse(c.SEOMeta).Frontmatter(c.Title) + body
+	}
 	filename := slugify(c.Title) + ".md"
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-	_, _ = w.Write([]byte(c.Body))
+	_, _ = w.Write([]byte(body))
+}
+
+// handleSchedule sets or clears a content row's publish date. An empty "date"
+// unschedules. Responds with the re-rendered calendar fragment for HTMX swap.
+func (s *Server) handleSchedule(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var when *time.Time
+	if raw := strings.TrimSpace(r.FormValue("date")); raw != "" {
+		t, err := time.Parse("2006-01-02", raw)
+		if err != nil {
+			s.hint(w, "Invalid date.", true)
+			return
+		}
+		when = &t
+	}
+	if err := s.store.SetSchedule(id, when, time.Now().UTC()); err != nil {
+		s.hint(w, "Schedule failed: "+err.Error(), true)
+		return
+	}
+	month := r.FormValue("month")
+	d := s.base("", "calendar")
+	d.Calendar = s.buildCalendar(month)
+	s.renderNamed(w, "calendar.html", "calendar-root", d)
 }
 
 // --- Stubs ---
-
-func (s *Server) handleCalendar(w http.ResponseWriter, r *http.Request) {
-	d := s.base("Calendar", "calendar")
-	d.Heading = "Editorial Calendar"
-	d.Blurb = "Plan and schedule your generated content across a visual timeline."
-	d.Planned = []string{
-		"Month/week calendar views (FullCalendar)",
-		"Drag-and-drop scheduling of library content onto publish dates",
-		"Reads content.scheduled_for; tracks drafted vs. published",
-	}
-	s.render(w, "stub.html", d)
-}
 
 func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 	d := s.base("Analytics", "analytics")
