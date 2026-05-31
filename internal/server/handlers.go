@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/mattcheramie/repoweaver/internal/analytics"
 	"github.com/mattcheramie/repoweaver/internal/seo"
 	"github.com/mattcheramie/repoweaver/internal/store"
 )
@@ -27,9 +29,20 @@ type pageData struct {
 	SEO      seo.Meta
 	Keywords []seo.KeywordStat
 	Calendar *calendarView
-	Heading  string
-	Blurb    string
-	Planned  []string
+
+	// Analytics dashboard
+	AnalyticsName  string
+	AnalyticsReady bool
+	AnalyticsError string
+	Analytics      []analyticsRow
+}
+
+// analyticsRow pairs a tracked content item with its performance metrics.
+type analyticsRow struct {
+	Content store.Content
+	Slug    string
+	Metrics analytics.Metrics
+	BarPct  int // pageviews relative to the busiest post (0..100)
 }
 
 func (s *Server) base(title, active string) pageData {
@@ -289,16 +302,62 @@ func (s *Server) handleSchedule(w http.ResponseWriter, r *http.Request) {
 	s.renderNamed(w, "calendar.html", "calendar-root", d)
 }
 
-// --- Stubs ---
-
+// handleAnalytics renders the performance dashboard, mapping analytics metrics
+// onto scheduled/published content. When no provider is configured it shows a
+// setup prompt instead.
 func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 	d := s.base("Analytics", "analytics")
-	d.Heading = "Analytics & Tracking"
-	d.Blurb = "Close the loop by tracking how published content performs."
-	d.Planned = []string{
-		"Optional Google Analytics 4 OAuth connection",
-		"Pageviews, avg. time on page, and bounce rate per post (Chart.js)",
-		"Metrics mapped to posts planned on the editorial calendar",
+	d.AnalyticsName = s.analytics.Name()
+	d.AnalyticsReady = s.analytics.Configured()
+
+	if !d.AnalyticsReady {
+		s.render(w, "analytics.html", d)
+		return
 	}
-	s.render(w, "stub.html", d)
+
+	content, err := s.store.ListContent()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Only published/scheduled posts are tracked; key them by SEO slug.
+	var slugs []string
+	bySlug := map[string]store.Content{}
+	for _, c := range content {
+		if c.ScheduledFor == nil {
+			continue
+		}
+		slug := seo.Parse(c.SEOMeta).Slug
+		if slug == "" {
+			slug = slugify(c.Title)
+		}
+		slugs = append(slugs, slug)
+		bySlug[slug] = c
+	}
+
+	metrics, err := s.analytics.Report(r.Context(), slugs)
+	if err != nil {
+		d.AnalyticsError = err.Error()
+		s.render(w, "analytics.html", d)
+		return
+	}
+
+	rows := make([]analyticsRow, 0, len(slugs))
+	var maxViews int64 = 1
+	for _, slug := range slugs {
+		m := metrics[slug]
+		if m.Pageviews > maxViews {
+			maxViews = m.Pageviews
+		}
+		rows = append(rows, analyticsRow{Content: bySlug[slug], Slug: slug, Metrics: m})
+	}
+	// Bar width as a percentage of the busiest post.
+	for i := range rows {
+		rows[i].BarPct = int(rows[i].Metrics.Pageviews * 100 / maxViews)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].Metrics.Pageviews > rows[j].Metrics.Pageviews
+	})
+	d.Analytics = rows
+	s.render(w, "analytics.html", d)
 }

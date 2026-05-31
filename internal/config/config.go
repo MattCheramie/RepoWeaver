@@ -18,6 +18,13 @@ type Config struct {
 	LLMAPIKey   string
 	LLMModel    string
 
+	// Analytics (Phase 6). AnalyticsProvider: "none" (default), "ga4", or
+	// "demo". GA4 needs a property ID and service-account credentials.
+	AnalyticsProvider  string
+	GA4PropertyID      string
+	GA4CredentialsJSON string // inline service-account JSON
+	GA4CredentialsFile string // path to service-account JSON
+
 	// OpenBrowser controls whether the server tries to open the default
 	// browser on startup.
 	OpenBrowser bool
@@ -32,6 +39,12 @@ func Load() Config {
 		LLMProvider: envOr("LLM_PROVIDER", "mock"),
 		LLMAPIKey:   os.Getenv("LLM_API_KEY"),
 		LLMModel:    os.Getenv("LLM_MODEL"),
+
+		AnalyticsProvider:  envOr("ANALYTICS_PROVIDER", "none"),
+		GA4PropertyID:      os.Getenv("GA4_PROPERTY_ID"),
+		GA4CredentialsJSON: os.Getenv("GA4_CREDENTIALS_JSON"),
+		GA4CredentialsFile: os.Getenv("GA4_CREDENTIALS_FILE"),
+
 		OpenBrowser: envBool("OPEN_BROWSER", false),
 	}
 }
