@@ -117,6 +117,20 @@ a system webview:
 make desktop   # CGO_ENABLED=1 go build -tags desktop -o bin/repoweaver-desktop .
 ```
 
+### Release packaging
+`make dist` cross-compiles the (pure-Go, no-CGO) web build for Linux, macOS, and
+Windows and writes ready-to-ship archives to `dist/`:
+
+```bash
+make dist                 # version from `git describe`
+make dist VERSION=v1.2.3  # explicit version (embedded via -ldflags)
+```
+
+Each archive bundles the binary, `README`, `LICENSE`, the app icon
+(`repoweaver.svg`), and — on Linux — a `repoweaver.desktop` launcher. A
+`SHA256SUMS` file covers every archive. The running binary reports its version
+in the startup log.
+
 The default web build (`make run` / `make build`) remains pure-Go with **no
 CGO** and is unaffected by the desktop tag.
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=RepoWeaver
+GenericName=Repository Knowledge Hub
+Comment=Extract, synthesize, and repurpose an open-source repository's history into content
+Exec=repoweaver
+Icon=repoweaver
+Terminal=false
+Categories=Development;Utility;
+Keywords=git;github;content;analytics;seo;

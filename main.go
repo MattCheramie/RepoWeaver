@@ -23,6 +23,9 @@ import (
 //go:embed web/templates/*.html web/static
 var webFS embed.FS
 
+// version is overridden at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
 	cfg := config.Load()
 
@@ -64,8 +67,8 @@ func main() {
 		}
 	}()
 
-	log.Printf("RepoWeaver ready on %s  (LLM: %s, analytics: %s, db: %s)",
-		url, cfg.LLMProvider, cfg.AnalyticsProvider, cfg.DBPath)
+	log.Printf("RepoWeaver %s ready on %s  (LLM: %s, analytics: %s, db: %s)",
+		version, url, cfg.LLMProvider, cfg.AnalyticsProvider, cfg.DBPath)
 
 	// runShell blocks until the app should exit. Its implementation is selected
 	// by build tag: the default serves headlessly; the "desktop" build opens a
