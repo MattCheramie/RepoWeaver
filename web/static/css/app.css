@@ -130,3 +130,8 @@ button:disabled { opacity: .6; cursor: progress; }
 .cal-item.badge-draft { background: var(--warn); color: #1b1b1b; }
 .cal-side { border: 1px dashed var(--border); border-radius: 8px; padding: 12px; min-height: 120px; }
 .cal-side h4 { margin-top: 0; }
+
+/* Analytics dashboard */
+.bar-wrap { background: var(--panel-2); border-radius: 4px; height: 10px; width: 160px; display: inline-block; vertical-align: middle; overflow: hidden; }
+.bar { background: var(--accent); height: 100%; }
+.bar-num { margin-left: 8px; font-variant-numeric: tabular-nums; }

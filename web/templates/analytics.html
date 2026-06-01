@@ -1,0 +1,54 @@
+{{define "content"}}
+<section class="panel">
+  <h1>Analytics &amp; Tracking</h1>
+  <p class="muted">Performance for scheduled and published posts, via {{.AnalyticsName}}.</p>
+
+  {{if not .AnalyticsReady}}
+  <div class="stub-card">
+    <h3>🔌 Connect Google Analytics</h3>
+    <p>No analytics provider is configured. Close the loop by tracking how your
+       published content performs.</p>
+    <p>Set these environment variables and restart:</p>
+    <ul>
+      <li><code>ANALYTICS_PROVIDER=ga4</code></li>
+      <li><code>GA4_PROPERTY_ID=123456789</code> (your GA4 property ID)</li>
+      <li><code>GA4_CREDENTIALS_FILE=/path/to/service-account.json</code>
+          (or <code>GA4_CREDENTIALS_JSON</code> with the inline JSON)</li>
+    </ul>
+    <p class="muted">No GA4 account handy? Set
+       <code>ANALYTICS_PROVIDER=demo</code> to explore the dashboard with
+       deterministic sample data.</p>
+  </div>
+  {{else if .AnalyticsError}}
+  <div class="stub-card">
+    <h3>⚠️ Could not load analytics</h3>
+    <p class="hint error">{{.AnalyticsError}}</p>
+  </div>
+  {{else if .Analytics}}
+  <table class="grid">
+    <thead>
+      <tr><th>Post</th><th>Pageviews</th><th>Avg. time</th><th>Bounce</th></tr>
+    </thead>
+    <tbody>
+      {{range .Analytics}}
+      <tr>
+        <td>
+          <a href="/content/{{.Content.ID}}">{{.Content.Title}}</a>
+          <div class="muted"><code>/{{.Slug}}</code> · {{if .Content.ScheduledFor}}{{.Content.ScheduledFor.Format "2006-01-02"}}{{end}}</div>
+        </td>
+        <td>
+          <div class="bar-wrap"><div class="bar" style="width: {{.BarPct}}%"></div></div>
+          <span class="bar-num">{{.Metrics.Pageviews}}</span>
+        </td>
+        <td>{{printf "%.0fs" .Metrics.AvgTimeOnPage}}</td>
+        <td>{{printf "%.0f%%" (pct .Metrics.BounceRate)}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">No scheduled or published posts yet. Schedule content on the
+     <a href="/calendar">Editorial Calendar</a> to start tracking it here.</p>
+  {{end}}
+</section>
+{{end}}

@@ -50,13 +50,12 @@ Closing the loop by tracking how the generated content actually performs in the 
  4. **Publish / Export:** Download the optimized Markdown file from the Content Library to publish to your blog or static site.
  5. **Track:** If GA is connected, check the Analytics Dashboard a week later to see how much traffic the new post is driving.
 
-## 🧪 Current Status (Walking-Skeleton MVP)
-This repository currently implements an end-to-end **walking skeleton** of the
-loop above: **ingest → analyze → generate → library → export**. It runs as a
-plain local web server (the Wails native shell can wrap it later without backend
-changes).
+## 🧪 Current Status
+This repository implements the full end-to-end loop: **ingest → analyze →
+generate → library → schedule → track**. It runs as a plain local web server
+(the Wails native shell can wrap it later without backend changes).
 
-**Implemented**
+**Implemented (all six phases)**
 - **Phase 1 — Ingestion:** GitHub PRs, issues, comments, and commit messages via
   the GitHub API, plus static `CHANGELOG`, `docs/`, and `.pdf` files. Cached in
   SQLite (total capture, including bots and unresolved issues).
@@ -69,12 +68,14 @@ changes).
 - **Phase 5 — Library & Editorial Calendar:** Browse, preview, edit, and download
   generated `.md` files (with or without frontmatter); a month-view calendar with
   drag-and-drop scheduling that tracks draft → scheduled → published status.
-- **Pluggable LLM:** Anthropic Claude (default), OpenAI, and Google Gemini, plus
-  a keyless `mock` provider so the whole app runs offline for development/tests.
-
-**Stubbed (navigable placeholder page) for the final phase**
-- Phase 6 Google Analytics 4 integration and performance dashboard (requires
-  GA4 OAuth credentials and outbound network access).
+- **Phase 6 — Analytics & Tracking:** A performance dashboard mapping pageviews,
+  average time on page, and bounce rate onto scheduled/published posts. Pulls
+  from **Google Analytics 4** (Data API, service-account auth); a `demo` provider
+  fabricates deterministic metrics for offline exploration, and an unconfigured
+  state shows a setup prompt.
+- **Pluggable providers:** LLM — Anthropic Claude (default), OpenAI, Google
+  Gemini, plus a keyless `mock`; Analytics — GA4, `demo`, or none. The whole app
+  runs offline for development/tests.
 
 ## 🏃 Running Locally
 Requires Go 1.25+ (no CGO — uses the pure-Go `modernc.org/sqlite` driver).
@@ -96,8 +97,26 @@ make vet     # go vet
 make build   # build ./bin/repoweaver
 ```
 
-**Project layout:** `main.go` (entrypoint + embedded web assets) ·
+### Native desktop app (optional)
+The same backend can run inside a native OS window via a system webview — no
+backend changes, selected by the `desktop` build tag. This path needs **CGO** and
+a system webview:
+
+- **Linux:** `libwebkit2gtk-4.1-dev` (or `4.0`) and GTK 3
+- **macOS:** WebKit (built in)
+- **Windows:** the Edge **WebView2** runtime
+
+```bash
+make desktop   # CGO_ENABLED=1 go build -tags desktop -o bin/repoweaver-desktop .
+```
+
+The default web build (`make run` / `make build`) remains pure-Go with **no
+CGO** and is unaffected by the desktop tag.
+
+**Project layout:** `main.go` (entrypoint + embedded web assets),
+`shell_web.go` / `shell_desktop.go` (web vs. native-window shell) ·
 `internal/config` · `internal/store` (SQLite) · `internal/ingest` (GitHub +
 files) · `internal/llm` (pluggable providers) · `internal/analyze` (clustering +
-generation) · `internal/seo` (SEO toolkit) · `internal/server` (HTTP + HTMX
-handlers, editorial calendar) · `web/` (templates + static assets).
+generation) · `internal/seo` (SEO toolkit) · `internal/analytics` (GA4 / demo) ·
+`internal/server` (HTTP + HTMX handlers, editorial calendar, analytics
+dashboard) · `web/` (templates + static assets).

@@ -114,16 +114,6 @@ func TestPipelineHTTP(t *testing.T) {
 	}
 }
 
-func TestStubPages(t *testing.T) {
-	srv, _ := newTestServer(t)
-	ts := httptest.NewServer(srv.Handler())
-	defer ts.Close()
-
-	if body := get(t, ts, "/analytics"); !strings.Contains(body, "Coming soon") {
-		t.Fatalf("/analytics not rendered as stub:\n%s", body)
-	}
-}
-
 // seedContent creates a repo, cluster, and one generated content row.
 func seedContent(t *testing.T, st *store.Store) store.Content {
 	t.Helper()

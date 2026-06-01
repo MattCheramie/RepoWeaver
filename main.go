@@ -1,4 +1,7 @@
-// Command repoweaver starts the RepoWeaver local web application.
+// Command repoweaver starts the RepoWeaver application. By default it runs as a
+// local web server (open the printed URL in a browser). Built with the
+// "desktop" tag it instead opens a native OS window via a system webview that
+// points at the same embedded server — see desktop.go.
 package main
 
 import (
@@ -6,6 +9,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -42,21 +46,31 @@ func main() {
 		log.Fatalf("server: %v", err)
 	}
 
-	addr := ":" + cfg.Port
-	url := "http://localhost:" + cfg.Port
+	// Bind explicitly so we know the final URL (including when PORT=0 picks a
+	// free port, which the desktop shell relies on).
+	ln, err := net.Listen("tcp", "127.0.0.1:"+cfg.Port)
+	if err != nil {
+		log.Fatalf("listen: %v", err)
+	}
+	url := "http://" + ln.Addr().String()
+
 	httpServer := &http.Server{
-		Addr:              addr,
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	go func() {
+		if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("serve: %v", err)
+		}
+	}()
 
-	log.Printf("RepoWeaver listening on %s  (LLM provider: %s, db: %s)", url, cfg.LLMProvider, cfg.DBPath)
-	if cfg.OpenBrowser {
-		go openBrowser(url)
-	}
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("listen: %v", err)
-	}
+	log.Printf("RepoWeaver ready on %s  (LLM: %s, analytics: %s, db: %s)",
+		url, cfg.LLMProvider, cfg.AnalyticsProvider, cfg.DBPath)
+
+	// runShell blocks until the app should exit. Its implementation is selected
+	// by build tag: the default serves headlessly; the "desktop" build opens a
+	// native window.
+	runShell(cfg, url, httpServer)
 }
 
 // openBrowser tries to open the default browser at url. Best effort.
