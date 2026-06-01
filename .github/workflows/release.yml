@@ -1,0 +1,48 @@
+name: Release
+
+# On a version tag (vX.Y.Z), cross-compile the pure-Go web build for every
+# release target via scripts/dist.sh and publish the archives + SHA256SUMS as a
+# GitHub Release. Also runnable manually to dry-run the packaging (it uploads
+# the artifacts but does not create a release).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dist:
+    name: Cross-compile & package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so `git describe --tags` resolves the version.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build release archives
+        run: make dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/repoweaver_*
+            dist/SHA256SUMS
+          generate_release_notes: true

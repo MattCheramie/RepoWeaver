@@ -31,6 +31,16 @@ This is what the test suite uses, so `go test ./...` needs no network or keys.
 A note on the build sandbox: outbound access may be restricted, so live GitHub
 ingestion and live GA4 calls aren't exercised in CI — only their wiring is.
 
+## Continuous integration
+
+GitHub Actions workflows live in [`.github/workflows`](../.github/workflows):
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | push to `main`, every PR | `go build`, `go vet`, and `go test -race` (with coverage) across Linux/macOS/Windows, plus a lint job (`gofmt`, `go vet`, `go mod tidy` check, `golangci-lint`). The `internal/server` httptest suite provides the end-to-end pipeline coverage. |
+| `desktop-build.yml` | PR/push touching the desktop shell or build tooling | Installs WebKitGTK + GTK and runs `make desktop` to keep the CGO/webview build green. |
+| `release.yml` | `v*` tags (manual dry-run too) | Runs `make dist` to cross-compile every release target and publishes the archives + `SHA256SUMS` as a GitHub Release. |
+
 ## Project layout
 
 See [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) for the package responsibilities and
