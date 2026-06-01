@@ -132,6 +132,11 @@ button:disabled { opacity: .6; cursor: progress; }
 .cal-side h4 { margin-top: 0; }
 
 /* Analytics dashboard */
-.bar-wrap { background: var(--panel-2); border-radius: 4px; height: 10px; width: 160px; display: inline-block; vertical-align: middle; overflow: hidden; }
-.bar { background: var(--accent); height: 100%; }
-.bar-num { margin-left: 8px; font-variant-numeric: tabular-nums; }
+.chart-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 6px 0 4px; }
+.chart-box canvas { display: block; width: 100%; }
+.chart-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 2px; }
+.chart-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 2px; }
+.dot-good { background: var(--good); }
+.dot-accent { background: var(--accent); }
+.dot-warn { background: var(--warn); }
+.grid td.num { font-variant-numeric: tabular-nums; }

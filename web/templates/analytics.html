@@ -25,6 +25,19 @@
     <p class="hint error">{{.AnalyticsError}}</p>
   </div>
   {{else if .Analytics}}
+  <h3>Pageviews by post <span class="muted">(last 28 days)</span></h3>
+  <div class="chart-box">
+    <canvas id="views-chart"></canvas>
+  </div>
+  <p class="muted chart-legend">
+    Bar colour reflects bounce rate:
+    <span class="dot dot-good"></span> low ·
+    <span class="dot dot-accent"></span> mid ·
+    <span class="dot dot-warn"></span> high
+  </p>
+  <script>window.__repoweaverChart = {{.ChartJSON}};</script>
+  <script src="/static/js/charts.js" defer></script>
+
   <table class="grid">
     <thead>
       <tr><th>Post</th><th>Pageviews</th><th>Avg. time</th><th>Bounce</th></tr>
@@ -36,10 +49,7 @@
           <a href="/content/{{.Content.ID}}">{{.Content.Title}}</a>
           <div class="muted"><code>/{{.Slug}}</code> · {{if .Content.ScheduledFor}}{{.Content.ScheduledFor.Format "2006-01-02"}}{{end}}</div>
         </td>
-        <td>
-          <div class="bar-wrap"><div class="bar" style="width: {{.BarPct}}%"></div></div>
-          <span class="bar-num">{{.Metrics.Pageviews}}</span>
-        </td>
+        <td class="num">{{.Metrics.Pageviews}}</td>
         <td>{{printf "%.0fs" .Metrics.AvgTimeOnPage}}</td>
         <td>{{printf "%.0f%%" (pct .Metrics.BounceRate)}}</td>
       </tr>
