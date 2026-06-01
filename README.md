@@ -97,7 +97,24 @@ make vet     # go vet
 make build   # build ./bin/repoweaver
 ```
 
-**Project layout:** `main.go` (entrypoint + embedded web assets) ·
+### Native desktop app (optional)
+The same backend can run inside a native OS window via a system webview — no
+backend changes, selected by the `desktop` build tag. This path needs **CGO** and
+a system webview:
+
+- **Linux:** `libwebkit2gtk-4.1-dev` (or `4.0`) and GTK 3
+- **macOS:** WebKit (built in)
+- **Windows:** the Edge **WebView2** runtime
+
+```bash
+make desktop   # CGO_ENABLED=1 go build -tags desktop -o bin/repoweaver-desktop .
+```
+
+The default web build (`make run` / `make build`) remains pure-Go with **no
+CGO** and is unaffected by the desktop tag.
+
+**Project layout:** `main.go` (entrypoint + embedded web assets),
+`shell_web.go` / `shell_desktop.go` (web vs. native-window shell) ·
 `internal/config` · `internal/store` (SQLite) · `internal/ingest` (GitHub +
 files) · `internal/llm` (pluggable providers) · `internal/analyze` (clustering +
 generation) · `internal/seo` (SEO toolkit) · `internal/analytics` (GA4 / demo) ·
