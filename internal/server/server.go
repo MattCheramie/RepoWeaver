@@ -6,6 +6,9 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strings"
+
+	"golang.org/x/oauth2"
 
 	"github.com/mattcheramie/repoweaver/internal/analytics"
 	"github.com/mattcheramie/repoweaver/internal/analyze"
@@ -25,14 +28,16 @@ var pageTemplates = []string{
 
 // Server holds dependencies shared by handlers.
 type Server struct {
-	cfg       config.Config
-	store     *store.Store
-	ingester  *ingest.Ingester
-	analyzer  *analyze.Analyzer
-	provider  llm.Provider
-	analytics analytics.Provider
-	pages     map[string]*template.Template
-	staticFS  fs.FS
+	cfg        config.Config
+	store      *store.Store
+	ingester   *ingest.Ingester
+	analyzer   *analyze.Analyzer
+	provider   llm.Provider
+	analytics  analytics.Provider
+	oauthConf  *oauth2.Config       // nil unless GA4 OAuth is configured
+	tokenStore analytics.TokenStore // backs the GA4 OAuth provider
+	pages      map[string]*template.Template
+	staticFS   fs.FS
 }
 
 // New builds a Server. templatesFS must contain the *.html templates and
@@ -51,15 +56,30 @@ func New(cfg config.Config, st *store.Store, templatesFS, staticFS fs.FS) (*Serv
 		pages[page] = t
 	}
 	provider := llm.New(cfg)
+
+	// Analytics: prefer the GA4 OAuth (browser consent) flow when an OAuth
+	// client is configured and no service-account credentials are supplied.
+	analyticsProvider := analytics.New(cfg)
+	var oauthConf *oauth2.Config
+	var tokenStore analytics.TokenStore
+	if strings.EqualFold(cfg.AnalyticsProvider, "ga4") && cfg.GA4OAuthClientID != "" &&
+		cfg.GA4CredentialsJSON == "" && cfg.GA4CredentialsFile == "" {
+		oauthConf = analytics.OAuthConfig(cfg.GA4OAuthClientID, cfg.GA4OAuthClientSecret, "")
+		tokenStore = &settingTokenStore{store: st}
+		analyticsProvider = analytics.NewGA4OAuth(cfg.GA4PropertyID, oauthConf, tokenStore)
+	}
+
 	return &Server{
-		cfg:       cfg,
-		store:     st,
-		ingester:  ingest.New(st, cfg.GitHubToken),
-		analyzer:  analyze.New(st, provider),
-		provider:  provider,
-		analytics: analytics.New(cfg),
-		pages:     pages,
-		staticFS:  staticFS,
+		cfg:        cfg,
+		store:      st,
+		ingester:   ingest.New(st, cfg.GitHubToken),
+		analyzer:   analyze.New(st, provider),
+		provider:   provider,
+		analytics:  analyticsProvider,
+		oauthConf:  oauthConf,
+		tokenStore: tokenStore,
+		pages:      pages,
+		staticFS:   staticFS,
 	}, nil
 }
 
@@ -85,6 +105,9 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /calendar", s.handleCalendar)
 	mux.HandleFunc("GET /analytics", s.handleAnalytics)
+	mux.HandleFunc("GET /analytics/connect", s.handleOAuthConnect)
+	mux.HandleFunc("GET /analytics/oauth/callback", s.handleOAuthCallback)
+	mux.HandleFunc("POST /analytics/disconnect", s.handleOAuthDisconnect)
 
 	return mux
 }

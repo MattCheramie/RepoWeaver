@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -35,6 +36,8 @@ type pageData struct {
 	AnalyticsReady bool
 	AnalyticsError string
 	Analytics      []analyticsRow
+	ChartJSON      template.JS // JSON array of {label,views,bounce} for the chart
+	OAuthAvailable bool        // GA4 browser consent flow is configured
 }
 
 // analyticsRow pairs a tracked content item with its performance metrics.
@@ -42,7 +45,6 @@ type analyticsRow struct {
 	Content store.Content
 	Slug    string
 	Metrics analytics.Metrics
-	BarPct  int // pageviews relative to the busiest post (0..100)
 }
 
 func (s *Server) base(title, active string) pageData {
@@ -309,6 +311,7 @@ func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 	d := s.base("Analytics", "analytics")
 	d.AnalyticsName = s.analytics.Name()
 	d.AnalyticsReady = s.analytics.Configured()
+	d.OAuthAvailable = s.oauthEnabled()
 
 	if !d.AnalyticsReady {
 		s.render(w, "analytics.html", d)
@@ -343,21 +346,39 @@ func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows := make([]analyticsRow, 0, len(slugs))
-	var maxViews int64 = 1
 	for _, slug := range slugs {
-		m := metrics[slug]
-		if m.Pageviews > maxViews {
-			maxViews = m.Pageviews
-		}
-		rows = append(rows, analyticsRow{Content: bySlug[slug], Slug: slug, Metrics: m})
-	}
-	// Bar width as a percentage of the busiest post.
-	for i := range rows {
-		rows[i].BarPct = int(rows[i].Metrics.Pageviews * 100 / maxViews)
+		rows = append(rows, analyticsRow{Content: bySlug[slug], Slug: slug, Metrics: metrics[slug]})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i].Metrics.Pageviews > rows[j].Metrics.Pageviews
 	})
 	d.Analytics = rows
+	d.ChartJSON = chartData(rows)
 	s.render(w, "analytics.html", d)
+}
+
+// chartPoint is one bar in the analytics chart.
+type chartPoint struct {
+	Label  string  `json:"label"`
+	Views  int64   `json:"views"`
+	Bounce float64 `json:"bounce"` // 0..1
+}
+
+// chartData marshals the dashboard rows for the client-side canvas chart. The
+// result is injected as a trusted JS value (template.JS); encoding/json escapes
+// <, >, & by default, keeping it safe inside a <script> element.
+func chartData(rows []analyticsRow) template.JS {
+	pts := make([]chartPoint, 0, len(rows))
+	for _, r := range rows {
+		pts = append(pts, chartPoint{
+			Label:  r.Content.Title,
+			Views:  r.Metrics.Pageviews,
+			Bounce: r.Metrics.BounceRate,
+		})
+	}
+	b, err := json.Marshal(pts)
+	if err != nil {
+		return template.JS("[]")
+	}
+	return template.JS(b)
 }

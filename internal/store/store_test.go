@@ -100,6 +100,34 @@ func TestItemsAndClusters(t *testing.T) {
 	}
 }
 
+func TestSettings(t *testing.T) {
+	s := newTestStore(t)
+
+	if _, ok := s.GetSetting("missing"); ok {
+		t.Fatal("expected missing key to return false")
+	}
+	if err := s.SetSetting("k", "v1"); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	if v, ok := s.GetSetting("k"); !ok || v != "v1" {
+		t.Fatalf("get: %q %v", v, ok)
+	}
+	// Upsert overwrites.
+	if err := s.SetSetting("k", "v2"); err != nil {
+		t.Fatalf("set 2: %v", err)
+	}
+	if v, _ := s.GetSetting("k"); v != "v2" {
+		t.Fatalf("expected v2, got %q", v)
+	}
+	// Empty value deletes.
+	if err := s.SetSetting("k", ""); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, ok := s.GetSetting("k"); ok {
+		t.Fatal("expected key deleted")
+	}
+}
+
 func TestContentRoundTrip(t *testing.T) {
 	s := newTestStore(t)
 	repo, _ := s.AddRepo("acme", "widget")

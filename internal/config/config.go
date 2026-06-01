@@ -25,6 +25,11 @@ type Config struct {
 	GA4CredentialsJSON string // inline service-account JSON
 	GA4CredentialsFile string // path to service-account JSON
 
+	// GA4 OAuth (browser consent flow) — an alternative to service-account
+	// credentials. When set, the dashboard offers a "Connect" button.
+	GA4OAuthClientID     string
+	GA4OAuthClientSecret string
+
 	// OpenBrowser controls whether the server tries to open the default
 	// browser on startup.
 	OpenBrowser bool
@@ -44,6 +49,9 @@ func Load() Config {
 		GA4PropertyID:      os.Getenv("GA4_PROPERTY_ID"),
 		GA4CredentialsJSON: os.Getenv("GA4_CREDENTIALS_JSON"),
 		GA4CredentialsFile: os.Getenv("GA4_CREDENTIALS_FILE"),
+
+		GA4OAuthClientID:     os.Getenv("GA4_OAUTH_CLIENT_ID"),
+		GA4OAuthClientSecret: os.Getenv("GA4_OAUTH_CLIENT_SECRET"),
 
 		OpenBrowser: envBool("OPEN_BROWSER", false),
 	}

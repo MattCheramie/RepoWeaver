@@ -67,4 +67,14 @@ func TestAnalyticsDemoDashboard(t *testing.T) {
 	if !strings.Contains(page, "Pageviews") {
 		t.Fatalf("dashboard missing metrics table:\n%s", page)
 	}
+	// Chart canvas, loader, and injected JS data should all be present.
+	if !strings.Contains(page, `id="views-chart"`) || !strings.Contains(page, "/static/js/charts.js") {
+		t.Fatalf("dashboard missing chart canvas/script:\n%s", page)
+	}
+	if !strings.Contains(page, "window.__repoweaverChart") || !strings.Contains(page, `"views":`) {
+		t.Fatalf("dashboard missing chart data:\n%s", page)
+	}
+	if !strings.Contains(page, `"label":"Caching Layer Guide"`) {
+		t.Fatalf("chart data missing post label:\n%s", page)
+	}
 }

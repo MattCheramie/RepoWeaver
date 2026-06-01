@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
@@ -75,19 +76,22 @@ type runReportResponse struct {
 	} `json:"rows"`
 }
 
-// Report implements Provider. It fetches pageviews, average engagement
-// duration, and bounce rate by page path over the last 28 days, then maps each
-// requested slug to the rows whose path contains that slug.
+// Report implements Provider using service-account credentials.
 func (g *GA4) Report(ctx context.Context, slugs []string) (map[string]Metrics, error) {
 	if !g.Configured() {
 		return nil, ErrNotConfigured
 	}
-
 	creds, err := google.CredentialsFromJSON(ctx, g.credsJSON, analyticsReadonlyScope)
 	if err != nil {
 		return nil, fmt.Errorf("ga4 credentials: %w", err)
 	}
+	return runReport(ctx, creds.TokenSource, g.propertyID, slugs)
+}
 
+// runReport calls the GA4 Data API runReport endpoint with the given token
+// source and maps the resulting rows onto the requested slugs. It is shared by
+// the service-account and OAuth providers.
+func runReport(ctx context.Context, ts oauth2.TokenSource, propertyID string, slugs []string) (map[string]Metrics, error) {
 	reqBody := runReportRequest{
 		Dimensions: []dimension{{Name: "pagePath"}},
 		Metrics: []metric{
@@ -103,15 +107,14 @@ func (g *GA4) Report(ctx context.Context, slugs []string) (map[string]Metrics, e
 	}
 
 	url := "https://analyticsdata.googleapis.com/v1beta/properties/" +
-		g.propertyID + ":runReport"
+		propertyID + ":runReport"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	if ts := creds.TokenSource; ts != nil {
+	if ts != nil {
 		tok, err := ts.Token()
 		if err != nil {
 			return nil, fmt.Errorf("ga4 token: %w", err)
@@ -119,6 +122,7 @@ func (g *GA4) Report(ctx context.Context, slugs []string) (map[string]Metrics, e
 		tok.SetAuthHeader(httpReq)
 	}
 
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, err

@@ -59,3 +59,8 @@ CREATE TABLE IF NOT EXISTS content (
 );
 
 CREATE INDEX IF NOT EXISTS idx_content_repo ON content(repo_id);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);

@@ -1,4 +1,4 @@
-.PHONY: run build desktop test vet tidy clean
+.PHONY: run build desktop dist test vet tidy clean
 
 # Run the local web server (defaults: PORT=8080, LLM_PROVIDER=mock).
 run:
@@ -13,6 +13,11 @@ build:
 desktop:
 	CGO_ENABLED=1 go build -tags desktop -o bin/repoweaver-desktop .
 
+# Build cross-platform release archives into ./dist (pure-Go, no CGO).
+# Override the version: make dist VERSION=v1.2.3
+dist:
+	scripts/dist.sh $(VERSION)
+
 # Run the full test suite (uses the keyless mock LLM provider).
 test:
 	go test ./...
@@ -24,4 +29,5 @@ tidy:
 	go mod tidy
 
 clean:
-	rm -f bin/repoweaver bin/repoweaver-desktop repoweaver.db
+	rm -rf bin dist
+	rm -f repoweaver.db

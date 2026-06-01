@@ -1,23 +1,38 @@
 {{define "content"}}
 <section class="panel">
   <h1>Analytics &amp; Tracking</h1>
-  <p class="muted">Performance for scheduled and published posts, via {{.AnalyticsName}}.</p>
+  <p class="muted">Performance for scheduled and published posts, via {{.AnalyticsName}}.
+    {{if and .AnalyticsReady .OAuthAvailable}}
+    <form class="inline" method="post" action="/analytics/disconnect">
+      <button type="submit" class="btn-ghost">Disconnect</button>
+    </form>
+    {{end}}
+  </p>
 
   {{if not .AnalyticsReady}}
   <div class="stub-card">
     <h3>🔌 Connect Google Analytics</h3>
+    {{if .OAuthAvailable}}
+    <p>Connect your Google Analytics 4 account to track how your published
+       content performs.</p>
+    <p><a class="btn" href="/analytics/connect">Connect Google Analytics →</a></p>
+    <p class="muted">You'll be sent to Google to grant read-only Analytics
+       access, then returned here.</p>
+    {{else}}
     <p>No analytics provider is configured. Close the loop by tracking how your
        published content performs.</p>
-    <p>Set these environment variables and restart:</p>
+    <p>Use the browser sign-in flow by setting an OAuth client:</p>
     <ul>
-      <li><code>ANALYTICS_PROVIDER=ga4</code></li>
-      <li><code>GA4_PROPERTY_ID=123456789</code> (your GA4 property ID)</li>
-      <li><code>GA4_CREDENTIALS_FILE=/path/to/service-account.json</code>
-          (or <code>GA4_CREDENTIALS_JSON</code> with the inline JSON)</li>
+      <li><code>ANALYTICS_PROVIDER=ga4</code> and <code>GA4_PROPERTY_ID=123456789</code></li>
+      <li><code>GA4_OAUTH_CLIENT_ID</code> and <code>GA4_OAUTH_CLIENT_SECRET</code></li>
     </ul>
+    <p>…or use a service account instead:
+       <code>GA4_CREDENTIALS_FILE=/path/to/service-account.json</code>
+       (or <code>GA4_CREDENTIALS_JSON</code> inline).</p>
     <p class="muted">No GA4 account handy? Set
        <code>ANALYTICS_PROVIDER=demo</code> to explore the dashboard with
        deterministic sample data.</p>
+    {{end}}
   </div>
   {{else if .AnalyticsError}}
   <div class="stub-card">
@@ -25,6 +40,19 @@
     <p class="hint error">{{.AnalyticsError}}</p>
   </div>
   {{else if .Analytics}}
+  <h3>Pageviews by post <span class="muted">(last 28 days)</span></h3>
+  <div class="chart-box">
+    <canvas id="views-chart"></canvas>
+  </div>
+  <p class="muted chart-legend">
+    Bar colour reflects bounce rate:
+    <span class="dot dot-good"></span> low ·
+    <span class="dot dot-accent"></span> mid ·
+    <span class="dot dot-warn"></span> high
+  </p>
+  <script>window.__repoweaverChart = {{.ChartJSON}};</script>
+  <script src="/static/js/charts.js" defer></script>
+
   <table class="grid">
     <thead>
       <tr><th>Post</th><th>Pageviews</th><th>Avg. time</th><th>Bounce</th></tr>
@@ -36,10 +64,7 @@
           <a href="/content/{{.Content.ID}}">{{.Content.Title}}</a>
           <div class="muted"><code>/{{.Slug}}</code> · {{if .Content.ScheduledFor}}{{.Content.ScheduledFor.Format "2006-01-02"}}{{end}}</div>
         </td>
-        <td>
-          <div class="bar-wrap"><div class="bar" style="width: {{.BarPct}}%"></div></div>
-          <span class="bar-num">{{.Metrics.Pageviews}}</span>
-        </td>
+        <td class="num">{{.Metrics.Pageviews}}</td>
         <td>{{printf "%.0fs" .Metrics.AvgTimeOnPage}}</td>
         <td>{{printf "%.0f%%" (pct .Metrics.BounceRate)}}</td>
       </tr>

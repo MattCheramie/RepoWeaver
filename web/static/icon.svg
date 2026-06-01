@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="RepoWeaver">
+  <rect width="256" height="256" rx="48" fill="#181b24"/>
+  <g fill="none" stroke="#7c9cff" stroke-width="10" stroke-linecap="round">
+    <!-- warp threads -->
+    <path d="M72 48 V208"/>
+    <path d="M128 48 V208"/>
+    <path d="M184 48 V208"/>
+  </g>
+  <g fill="none" stroke="#5b76d6" stroke-width="10" stroke-linecap="round">
+    <!-- weft threads, woven -->
+    <path d="M48 88 H208"/>
+    <path d="M48 128 H208"/>
+    <path d="M48 168 H208"/>
+  </g>
+  <!-- woven over/under nodes -->
+  <g fill="#3fb950">
+    <circle cx="72" cy="128" r="11"/>
+    <circle cx="128" cy="88" r="11"/>
+    <circle cx="128" cy="168" r="11"/>
+    <circle cx="184" cy="128" r="11"/>
+  </g>
+</svg>

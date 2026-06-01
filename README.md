@@ -69,10 +69,17 @@ generate → library → schedule → track**. It runs as a plain local web serv
   generated `.md` files (with or without frontmatter); a month-view calendar with
   drag-and-drop scheduling that tracks draft → scheduled → published status.
 - **Phase 6 — Analytics & Tracking:** A performance dashboard mapping pageviews,
-  average time on page, and bounce rate onto scheduled/published posts. Pulls
-  from **Google Analytics 4** (Data API, service-account auth); a `demo` provider
-  fabricates deterministic metrics for offline exploration, and an unconfigured
-  state shows a setup prompt.
+  average time on page, and bounce rate onto scheduled/published posts, with a
+  pageviews bar chart (bars coloured by bounce rate). Pulls from **Google
+  Analytics 4** (Data API) authenticated either by a one-click **browser OAuth**
+  flow (Connect / Disconnect on the dashboard) or a **service account**; a `demo`
+  provider fabricates deterministic metrics for offline exploration, and an
+  unconfigured state shows a setup prompt.
+
+> The chart uses a small self-contained Canvas renderer
+> (`web/static/js/charts.js`) rather than Chart.js, because this build
+> environment's network allowlist can't fetch Chart.js; it exposes the same
+> data (`window.__repoweaverChart`) so a Chart.js drop-in is straightforward.
 - **Pluggable providers:** LLM — Anthropic Claude (default), OpenAI, Google
   Gemini, plus a keyless `mock`; Analytics — GA4, `demo`, or none. The whole app
   runs offline for development/tests.
@@ -109,6 +116,20 @@ a system webview:
 ```bash
 make desktop   # CGO_ENABLED=1 go build -tags desktop -o bin/repoweaver-desktop .
 ```
+
+### Release packaging
+`make dist` cross-compiles the (pure-Go, no-CGO) web build for Linux, macOS, and
+Windows and writes ready-to-ship archives to `dist/`:
+
+```bash
+make dist                 # version from `git describe`
+make dist VERSION=v1.2.3  # explicit version (embedded via -ldflags)
+```
+
+Each archive bundles the binary, `README`, `LICENSE`, the app icon
+(`repoweaver.svg`), and — on Linux — a `repoweaver.desktop` launcher. A
+`SHA256SUMS` file covers every archive. The running binary reports its version
+in the startup log.
 
 The default web build (`make run` / `make build`) remains pure-Go with **no
 CGO** and is unaffected by the desktop tag.
