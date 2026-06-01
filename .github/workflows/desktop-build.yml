@@ -1,0 +1,57 @@
+name: Desktop build
+
+# The default web build is pure Go, but the optional native desktop shell
+# (shell_desktop.go, //go:build desktop) needs CGO + a system webview. This
+# workflow makes sure that build path keeps compiling. It only runs when the
+# desktop shell, its dependencies, or the build tooling change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'shell_desktop.go'
+      - 'main.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/desktop-build.yml'
+  pull_request:
+    paths:
+      - 'shell_desktop.go'
+      - 'main.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/desktop-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build desktop app (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # webview/webview_go needs WebKitGTK + GTK headers. Ubuntu 24.04 ships
+      # the 4.1 series; fall back to 4.0 on older runners.
+      - name: Install webview dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            || sudo apt-get install -y libwebkit2gtk-4.0-dev
+
+      - name: Build desktop binary
+        run: make desktop
