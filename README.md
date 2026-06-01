@@ -71,9 +71,10 @@ generate → library → schedule → track**. It runs as a plain local web serv
 - **Phase 6 — Analytics & Tracking:** A performance dashboard mapping pageviews,
   average time on page, and bounce rate onto scheduled/published posts, with a
   pageviews bar chart (bars coloured by bounce rate). Pulls from **Google
-  Analytics 4** (Data API, service-account auth); a `demo` provider fabricates
-  deterministic metrics for offline exploration, and an unconfigured state shows
-  a setup prompt.
+  Analytics 4** (Data API) authenticated either by a one-click **browser OAuth**
+  flow (Connect / Disconnect on the dashboard) or a **service account**; a `demo`
+  provider fabricates deterministic metrics for offline exploration, and an
+  unconfigured state shows a setup prompt.
 
 > The chart uses a small self-contained Canvas renderer
 > (`web/static/js/charts.js`) rather than Chart.js, because this build

@@ -37,6 +37,7 @@ type pageData struct {
 	AnalyticsError string
 	Analytics      []analyticsRow
 	ChartJSON      template.JS // JSON array of {label,views,bounce} for the chart
+	OAuthAvailable bool        // GA4 browser consent flow is configured
 }
 
 // analyticsRow pairs a tracked content item with its performance metrics.
@@ -310,6 +311,7 @@ func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 	d := s.base("Analytics", "analytics")
 	d.AnalyticsName = s.analytics.Name()
 	d.AnalyticsReady = s.analytics.Configured()
+	d.OAuthAvailable = s.oauthEnabled()
 
 	if !d.AnalyticsReady {
 		s.render(w, "analytics.html", d)

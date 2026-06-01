@@ -393,6 +393,30 @@ func scanContent(sc scanner) (Content, error) {
 	return c, nil
 }
 
+// --- Settings (key/value) ---
+
+// GetSetting returns the value for key, or ("", false) if absent.
+func (s *Store) GetSetting(key string) (string, bool) {
+	var v string
+	err := s.db.QueryRow(`SELECT value FROM settings WHERE key=?`, key).Scan(&v)
+	if err != nil {
+		return "", false
+	}
+	return v, true
+}
+
+// SetSetting upserts a key/value pair. An empty value deletes the key.
+func (s *Store) SetSetting(key, value string) error {
+	if value == "" {
+		_, err := s.db.Exec(`DELETE FROM settings WHERE key=?`, key)
+		return err
+	}
+	_, err := s.db.Exec(`
+		INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value=excluded.value`, key, value)
+	return err
+}
+
 func nullableInt(v int64) any {
 	if v == 0 {
 		return nil
