@@ -60,6 +60,33 @@ type Cluster struct {
 	ItemCount    int // populated on read for convenience
 }
 
+// Topic research lifecycle states.
+const (
+	TopicIdentified  = "identified"  // found during analysis, not yet researched
+	TopicResearching = "researching" // research in progress (background)
+	TopicResearched  = "researched"  // briefing + sources stored
+	TopicError       = "error"       // research failed; see Error
+	TopicUnsupported = "unsupported" // provider can't do live web research
+)
+
+// Topic is a subject the repository touches on but does not cover in detail.
+// Once researched, its briefing and sources become a reusable knowledge-base
+// entry for content creation. The sources column is stored as a JSON string;
+// the analyze package converts it to/from typed source records to keep this
+// package free of an llm dependency.
+type Topic struct {
+	ID           int64
+	RepoID       int64
+	Name         string
+	Rationale    string
+	Status       string
+	Research     string
+	Sources      string // JSON array of {"title","url"}
+	Error        string
+	CreatedAt    time.Time
+	ResearchedAt *time.Time
+}
+
 // Content is a generated, publishable output stored in the library.
 type Content struct {
 	ID           int64

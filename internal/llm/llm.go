@@ -4,6 +4,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,6 +19,30 @@ type Provider interface {
 	// Name returns a human-readable provider identifier.
 	Name() string
 }
+
+// Source is a web reference the model used while researching a topic.
+type Source struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+// ResearchResult is the output of researching a single topic.
+type ResearchResult struct {
+	Briefing string   `json:"briefing"`
+	Sources  []Source `json:"sources"`
+}
+
+// Researcher is an OPTIONAL provider capability: backends that can research a
+// topic against live web sources implement it. Callers type-assert and fall
+// back (e.g. marking the topic unsupported) when it is absent, rather than
+// fabricating sources via a plain completion.
+type Researcher interface {
+	Research(ctx context.Context, topic, contextHint string) (ResearchResult, error)
+}
+
+// ErrResearchUnsupported distinguishes "this provider cannot research" from a
+// transient research failure.
+var ErrResearchUnsupported = errors.New("provider does not support live web research")
 
 // New constructs a Provider from configuration. Unknown or empty providers
 // fall back to the mock so the app always runs.

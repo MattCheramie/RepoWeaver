@@ -9,17 +9,32 @@
   <div class="counts">
     {{range $k, $v := .Counts}}<span class="chip">{{$k}}: {{$v}}</span>{{end}}
   </div>
-  <form hx-post="/repos/{{.Repo.ID}}/analyze" hx-target="#clusters" hx-disabled-elt="find button">
+  <form hx-post="/repos/{{.Repo.ID}}/analyze" hx-target="#analyze-result" hx-disabled-elt="find button">
     <button type="submit">🧠 Analyze &amp; Cluster</button>
-    <span class="muted">Maps the problem-solving narrative and groups related items.</span>
+    <span class="muted">Maps the narrative, groups items, and finds topic gaps to research.</span>
   </form>
 </section>
 
+<div id="analyze-result">
+  {{template "analyze-result" .}}
+</div>
+{{end}}
+
+{{define "analyze-result"}}
 <section class="panel">
   <h2>Knowledge Hub — Clusters</h2>
   <div id="clusters">
     {{template "clusters" .}}
   </div>
+</section>
+
+<section class="panel">
+  <h2>Topic Research</h2>
+  <p class="muted">
+    Topics this repo touches on but doesn't cover in detail — researched via the
+    connected AI platform and added to the knowledge base for content creation.
+  </p>
+  {{template "topics" .}}
 </section>
 {{end}}
 
@@ -45,4 +60,56 @@
 {{else}}
 <p class="muted">No clusters yet. Click <strong>Analyze &amp; Cluster</strong> above.</p>
 {{end}}
+{{end}}
+
+{{define "topics"}}
+<div id="topics"{{if .AnyResearching}} hx-get="/repos/{{.Repo.ID}}/topics" hx-trigger="every 3s" hx-swap="outerHTML"{{end}}>
+{{if .Topics}}
+<div class="cluster-list">
+  {{range .Topics}}
+  <article class="cluster">
+    <header>
+      <h3>{{.Name}}</h3>
+      <span class="badge badge-{{.Status}}">{{.Status}}</span>
+    </header>
+    {{if .Rationale}}<p class="muted">{{.Rationale}}</p>{{end}}
+    {{if eq .Status "researched"}}
+      <details>
+        <summary>Research briefing</summary>
+        <pre class="research">{{.Research}}</pre>
+        {{if .Sources}}
+        <p class="muted">Sources:</p>
+        <ul>
+          {{range .Sources}}<li><a href="{{.URL}}" target="_blank" rel="noreferrer">{{if .Title}}{{.Title}}{{else}}{{.URL}}{{end}}</a></li>{{end}}
+        </ul>
+        {{end}}
+      </details>
+      <form hx-post="/topics/{{.ID}}/generate" hx-target="#gen-topic-{{.ID}}" hx-disabled-elt="find button">
+        <button type="submit">✍️ Generate draft</button>
+        <span id="gen-topic-{{.ID}}" class="hint"></span>
+      </form>
+    {{else if eq .Status "researching"}}
+      <p class="muted">⏳ Researching…</p>
+    {{else if eq .Status "error"}}
+      <p class="error">{{.Error}}</p>
+      <form hx-post="/topics/{{.ID}}/research" hx-target="#topics" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <button type="submit">↻ Retry research</button>
+      </form>
+    {{else if eq .Status "unsupported"}}
+      <p class="muted">Live research requires the Claude provider.</p>
+      <form hx-post="/topics/{{.ID}}/research" hx-target="#topics" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <button type="submit">🔎 Research</button>
+      </form>
+    {{else}}
+      <form hx-post="/topics/{{.ID}}/research" hx-target="#topics" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <button type="submit">🔎 Research</button>
+      </form>
+    {{end}}
+  </article>
+  {{end}}
+</div>
+{{else}}
+<p class="muted">No topics yet. Click <strong>Analyze &amp; Cluster</strong> above.</p>
+{{end}}
+</div>
 {{end}}

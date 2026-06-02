@@ -20,19 +20,29 @@ type Store struct {
 }
 
 // Open opens (creating if needed) the SQLite database at path and applies the
-// schema. Foreign keys are enabled.
+// schema. Foreign keys are enabled. WAL mode plus a busy timeout let background
+// research workers write concurrently without hitting "database is locked", and
+// the connection pool is capped at one to serialize writes (modernc.org/sqlite
+// is single-writer); this is fine for a single-user, local app.
 func Open(path string) (*Store, error) {
-	db, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)")
+	dsn := path + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+	db.SetMaxOpenConns(1)
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
 	if _, err := db.Exec(schemaSQL); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
-	return &Store{db: db}, nil
+	s := &Store{db: db}
+	// Recover topics orphaned in the "researching" state by a prior restart.
+	if err := s.ResetStuckResearch(); err != nil {
+		return nil, fmt.Errorf("reset stuck research: %w", err)
+	}
+	return s, nil
 }
 
 // Close releases the database handle.
@@ -302,6 +312,102 @@ func (s *Store) ClusterItems(clusterID int64) ([]Item, error) {
 	return out, rows.Err()
 }
 
+// --- Topics ---
+
+// UpsertTopic inserts an identified topic (status "identified") or, if one with
+// the same name already exists for the repo, refreshes only its rationale —
+// preserving any existing research/status so re-analysis is non-destructive.
+// Returns the topic id.
+func (s *Store) UpsertTopic(repoID int64, name, rationale string) (int64, error) {
+	_, err := s.db.Exec(`
+		INSERT INTO topics (repo_id, name, rationale, status, created_at)
+		VALUES (?, ?, ?, 'identified', ?)
+		ON CONFLICT(repo_id, name) DO UPDATE SET rationale=excluded.rationale`,
+		repoID, name, rationale, time.Now().UTC())
+	if err != nil {
+		return 0, err
+	}
+	var id int64
+	err = s.db.QueryRow(`SELECT id FROM topics WHERE repo_id=? AND name=?`, repoID, name).Scan(&id)
+	return id, err
+}
+
+// ListTopics returns all topics for a repo, newest first.
+func (s *Store) ListTopics(repoID int64) ([]Topic, error) {
+	rows, err := s.db.Query(`
+		SELECT id, repo_id, name, rationale, status, research, sources, error, created_at, researched_at
+		FROM topics WHERE repo_id=? ORDER BY id`, repoID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Topic
+	for rows.Next() {
+		t, err := scanTopic(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// TopicByID returns a single topic.
+func (s *Store) TopicByID(id int64) (Topic, error) {
+	row := s.db.QueryRow(`
+		SELECT id, repo_id, name, rationale, status, research, sources, error, created_at, researched_at
+		FROM topics WHERE id=?`, id)
+	return scanTopic(row)
+}
+
+// SetTopicStatus updates a topic's status and clears any stored error.
+func (s *Store) SetTopicStatus(id int64, status string) error {
+	_, err := s.db.Exec(`UPDATE topics SET status=?, error='' WHERE id=?`, status, id)
+	return err
+}
+
+// SetTopicError marks a topic as failed with a message.
+func (s *Store) SetTopicError(id int64, msg string) error {
+	_, err := s.db.Exec(`UPDATE topics SET status='error', error=? WHERE id=?`, msg, id)
+	return err
+}
+
+// SaveTopicResearch stores a completed research briefing and its sources JSON,
+// marking the topic researched and clearing any prior error.
+func (s *Store) SaveTopicResearch(id int64, research, sourcesJSON string) error {
+	_, err := s.db.Exec(`
+		UPDATE topics SET research=?, sources=?, status='researched', error='', researched_at=?
+		WHERE id=?`,
+		research, jsonArrayOrEmpty(sourcesJSON), time.Now().UTC(), id)
+	return err
+}
+
+// ResetStuckResearch reverts topics left mid-research by a crash/restart back to
+// "identified" so they can be retried.
+func (s *Store) ResetStuckResearch() error {
+	_, err := s.db.Exec(`UPDATE topics SET status='identified' WHERE status='researching'`)
+	return err
+}
+
+func scanTopic(sc scanner) (Topic, error) {
+	var t Topic
+	var rationale, research, sources, errMsg sql.NullString
+	var researched sql.NullTime
+	if err := sc.Scan(&t.ID, &t.RepoID, &t.Name, &rationale, &t.Status,
+		&research, &sources, &errMsg, &t.CreatedAt, &researched); err != nil {
+		return Topic{}, err
+	}
+	t.Rationale, t.Research, t.Error = rationale.String, research.String, errMsg.String
+	t.Sources = sources.String
+	if t.Sources == "" {
+		t.Sources = "[]"
+	}
+	if researched.Valid {
+		t.ResearchedAt = &researched.Time
+	}
+	return t, nil
+}
+
 // --- Content ---
 
 // CreateContent inserts a generated content row and returns its id.
@@ -434,6 +540,13 @@ func nullableTime(t *time.Time) any {
 func jsonOrEmpty(s string) string {
 	if s == "" {
 		return "{}"
+	}
+	return s
+}
+
+func jsonArrayOrEmpty(s string) string {
+	if s == "" {
+		return "[]"
 	}
 	return s
 }

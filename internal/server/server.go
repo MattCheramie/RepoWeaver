@@ -94,7 +94,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /repos", s.handleAddRepo)
 	mux.HandleFunc("GET /repos/{id}/hub", s.handleHub)
 	mux.HandleFunc("POST /repos/{id}/analyze", s.handleAnalyze)
+	mux.HandleFunc("GET /repos/{id}/topics", s.handleTopics)
 	mux.HandleFunc("POST /clusters/{id}/generate", s.handleGenerate)
+	mux.HandleFunc("POST /topics/{id}/research", s.handleResearchTopic)
+	mux.HandleFunc("POST /topics/{id}/generate", s.handleGenerateFromTopic)
 
 	mux.HandleFunc("GET /library", s.handleLibrary)
 	mux.HandleFunc("GET /content/{id}", s.handleContent)

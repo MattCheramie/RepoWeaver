@@ -100,6 +100,71 @@ func TestItemsAndClusters(t *testing.T) {
 	}
 }
 
+func TestTopicsRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	repo, _ := s.AddRepo("acme", "widget")
+
+	id, err := s.UpsertTopic(repo.ID, "Rate limiting", "Mentioned but not explained")
+	if err != nil {
+		t.Fatalf("upsert topic: %v", err)
+	}
+
+	// Upsert with the same name is idempotent and only refreshes rationale,
+	// preserving status/research.
+	if err := s.SaveTopicResearch(id, "A briefing.", `[{"title":"T","url":"https://e.com"}]`); err != nil {
+		t.Fatalf("save research: %v", err)
+	}
+	idAgain, _ := s.UpsertTopic(repo.ID, "Rate limiting", "Updated rationale")
+	if idAgain != id {
+		t.Fatalf("expected same id %d, got %d", id, idAgain)
+	}
+	got, _ := s.TopicByID(id)
+	if got.Status != TopicResearched {
+		t.Fatalf("re-upsert clobbered status: %s", got.Status)
+	}
+	if got.Rationale != "Updated rationale" {
+		t.Fatalf("rationale not refreshed: %q", got.Rationale)
+	}
+	if got.Research != "A briefing." || got.Sources == "[]" || got.ResearchedAt == nil {
+		t.Fatalf("unexpected research state: %#v", got)
+	}
+
+	// Error + status transitions.
+	id2, _ := s.UpsertTopic(repo.ID, "Backpressure", "")
+	if err := s.SetTopicError(id2, "boom"); err != nil {
+		t.Fatalf("set error: %v", err)
+	}
+	got2, _ := s.TopicByID(id2)
+	if got2.Status != TopicError || got2.Error != "boom" {
+		t.Fatalf("unexpected error state: %#v", got2)
+	}
+	if err := s.SetTopicStatus(id2, TopicResearching); err != nil {
+		t.Fatalf("set status: %v", err)
+	}
+
+	// ResetStuckResearch reverts in-flight rows.
+	if err := s.ResetStuckResearch(); err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+	got2, _ = s.TopicByID(id2)
+	if got2.Status != TopicIdentified {
+		t.Fatalf("expected reset to identified, got %s", got2.Status)
+	}
+
+	list, _ := s.ListTopics(repo.ID)
+	if len(list) != 2 {
+		t.Fatalf("expected 2 topics, got %d", len(list))
+	}
+
+	// Cascade delete with the repo.
+	if _, err := s.db.Exec(`DELETE FROM repos WHERE id=?`, repo.ID); err != nil {
+		t.Fatalf("delete repo: %v", err)
+	}
+	if list, _ := s.ListTopics(repo.ID); len(list) != 0 {
+		t.Fatalf("expected topics cascade-deleted, got %d", len(list))
+	}
+}
+
 func TestSettings(t *testing.T) {
 	s := newTestStore(t)
 
