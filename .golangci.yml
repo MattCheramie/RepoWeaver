@@ -1,0 +1,31 @@
+# golangci-lint configuration (v2).
+#
+# The CI lint job historically pinned golangci-lint v1 (via action @v6), which
+# could not run against this module's Go 1.25 target. Moving to v2 surfaced
+# findings that v1 suppressed by default, so this config restores equivalent
+# behavior:
+#
+#   - std-error-handling: re-applies v1's default exclusions for unchecked
+#     errors on Close / Fprintf / Write and similar stdlib calls.
+#   - errcheck is relaxed in *_test.go (tests routinely ignore setup errors) and
+#     for deferred (*sql.Tx).Rollback, which returns ErrTxDone after a Commit.
+#   - QF1001 / QF1008: opinionated "quickfix" style suggestions newly enabled by
+#     v2's staticcheck; v1 never ran them.
+#   - SA1019: a pre-existing GA4-client deprecation, excluded to keep CI green.
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - (*database/sql.Tx).Rollback
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: "QF1001|QF1008|SA1019"
+      - path: _test\.go
+        linters:
+          - errcheck
