@@ -27,8 +27,8 @@ executable.
 | `internal/config` | Reads all configuration from environment variables, applying defaults. |
 | `internal/store` | SQLite access (pure-Go `modernc.org/sqlite`). Owns the schema and all queries. |
 | `internal/ingest` | Phase 1. Pulls GitHub history (`go-github`) and static files; extracts PDF text. |
-| `internal/llm` | Pluggable LLM `Provider` interface and implementations (`mock`, `claude`, `openai`, `gemini`). |
-| `internal/analyze` | Phase 2/3/4. Clustering + salvage and Markdown generation ("the Brain"). |
+| `internal/llm` | Pluggable LLM `Provider` interface and implementations (`mock`, `claude`, `openai`, `gemini`). Optional `Researcher` capability for live web-search research (implemented by `claude` and `mock`). |
+| `internal/analyze` | Phase 2/3/4. Clustering + salvage, Markdown generation, and topic-gap research ("the Brain"). |
 | `internal/seo` | Phase 4. Keyword density, slugs, AI-assisted meta/tags, YAML frontmatter. |
 | `internal/analytics` | Phase 6. Pluggable analytics `Provider` (`ga4` via OAuth or service account, `demo`, `none`). |
 | `internal/server` | HTTP routing, HTMX handlers, the editorial calendar, and the GA4 OAuth flow. |
@@ -55,10 +55,13 @@ idempotently on startup.
 | `items` | `repo_id, kind, external_id, title, body, state, …` | One ingested unit. Unique on `(repo_id, kind, external_id)` so re-ingest upserts. |
 | `clusters` | `repo_id, title, summary, narrative, target_format` | LLM-identified story; replaced wholesale on each analyze run. |
 | `cluster_items` | `cluster_id, item_id` | Membership join. |
-| `content` | `cluster_id, repo_id, title, format, body, seo_meta, status, scheduled_for` | Generated Markdown + SEO JSON + lifecycle. |
+| `content` | `cluster_id, repo_id, title, format, body, seo_meta, status, scheduled_for` | Generated Markdown + SEO JSON + lifecycle. `cluster_id` is NULL for standalone drafts generated from a researched topic. |
+| `topics` | `repo_id, name, rationale, status, research, sources, error, researched_at` | Topic gaps "touched on but not covered in detail". Researched via the `llm.Researcher` (live web search) into a reusable knowledge-base entry. Unique on `(repo_id, name)`. |
 | `settings` | `key, value` | Generic KV; stores the GA4 OAuth token. |
 
 **Item kinds:** `pr`, `issue`, `comment`, `commit`, `doc`, `pdf`.
+**Topic status:** `identified` → `researching` → `researched` / `error` /
+`unsupported` (provider can't do live web research).
 **Target formats:** `blog`, `tutorial`, `video_script`, `deep_dive`.
 **Content status:** `draft`, `scheduled`, `published` (derived from
 `scheduled_for` relative to now).

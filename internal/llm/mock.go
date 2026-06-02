@@ -26,11 +26,26 @@ func (m *Mock) Complete(_ context.Context, system, prompt string) (string, error
 	switch {
 	case strings.Contains(low, "meta_description"):
 		return m.seoJSON(), nil
+	case strings.Contains(low, `"topics"`):
+		return m.topicsJSON(), nil
 	case strings.Contains(low, "json"):
 		return m.clusterJSON(prompt), nil
 	default:
 		return m.prose(prompt), nil
 	}
+}
+
+// topicsJSON returns a small, valid topic-gap document so the identify step has
+// something to research.
+func (m *Mock) topicsJSON() string {
+	doc := map[string]any{
+		"topics": []map[string]any{
+			{"name": "Mock Adjacent Topic", "rationale": "Referenced in passing but never explained in depth."},
+			{"name": "Mock Background Concept", "rationale": "Assumed prior knowledge the repo does not document."},
+		},
+	}
+	b, _ := json.Marshal(doc)
+	return string(b)
 }
 
 // seoJSON returns a small, valid SEO metadata document.
@@ -84,6 +99,26 @@ func pickIndices(prompt string, offset int) []int {
 		}
 	}
 	return out
+}
+
+// Research implements Researcher deterministically so the full
+// identify -> research -> generate pipeline runs offline and in tests. The
+// sources are placeholders; configure the Claude provider for live web research.
+func (m *Mock) Research(_ context.Context, topic, contextHint string) (ResearchResult, error) {
+	briefing := fmt.Sprintf(`# Research: %s
+
+> Mock-generated briefing. Configure `+"`LLM_PROVIDER=claude`"+` for live web research.
+
+This placeholder summarizes what a real research pass would gather about **%s**.
+%s A production run would cite current, authoritative sources below.`,
+		topic, topic, strings.TrimSpace(contextHint))
+	return ResearchResult{
+		Briefing: briefing,
+		Sources: []Source{
+			{Title: "Mock source 1", URL: "https://example.com/mock-source-1"},
+			{Title: "Mock source 2", URL: "https://example.com/mock-source-2"},
+		},
+	}, nil
 }
 
 func (m *Mock) prose(prompt string) string {

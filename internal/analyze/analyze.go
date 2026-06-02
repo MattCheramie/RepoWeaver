@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/mattcheramie/repoweaver/internal/llm"
 	"github.com/mattcheramie/repoweaver/internal/seo"
@@ -23,11 +24,14 @@ const bodyExcerpt = 600
 type Analyzer struct {
 	store    *store.Store
 	provider llm.Provider
+
+	mu          sync.Mutex     // guards researching
+	researching map[int64]bool // repoID -> background research in flight
 }
 
 // New returns an Analyzer.
 func New(s *store.Store, p llm.Provider) *Analyzer {
-	return &Analyzer{store: s, provider: p}
+	return &Analyzer{store: s, provider: p, researching: map[int64]bool{}}
 }
 
 const clusterSystem = `You are RepoWeaver's analysis engine. You map an open-source repository's
@@ -94,6 +98,12 @@ func (a *Analyzer) Run(ctx context.Context, repoID int64) (int, error) {
 	if err := a.store.ReplaceClusters(repoID, clusters, members); err != nil {
 		return 0, err
 	}
+
+	// Identify topic gaps in the same pass (fast, one LLM call). Failure here is
+	// non-fatal: clustering already succeeded and is what the caller awaits.
+	if _, err := a.IdentifyTopics(ctx, repoID, items); err != nil {
+		return len(clusters), nil
+	}
 	return len(clusters), nil
 }
 
@@ -119,6 +129,7 @@ func (a *Analyzer) Generate(ctx context.Context, clusterID int64) (int64, error)
 	fmt.Fprintf(&b, "Summary: %s\n", cluster.Summary)
 	fmt.Fprintf(&b, "Narrative: %s\n\nSource items:\n", cluster.Narrative)
 	b.WriteString(formatItems(items))
+	b.WriteString(researchContext(a.store, cluster.RepoID))
 
 	body, err := a.provider.Complete(ctx, generateSystem, b.String())
 	if err != nil {

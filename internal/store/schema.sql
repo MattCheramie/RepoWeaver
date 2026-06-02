@@ -64,3 +64,23 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- topics: subjects a repo touches on but does not cover in detail, identified
+-- during analysis and researched (via the connected AI platform's live web
+-- search) into reusable knowledge-base entries.
+CREATE TABLE IF NOT EXISTS topics (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_id       INTEGER NOT NULL REFERENCES repos(id) ON DELETE CASCADE,
+    name          TEXT NOT NULL,
+    rationale     TEXT,
+    status        TEXT NOT NULL DEFAULT 'identified',
+    -- identified | researching | researched | error | unsupported
+    research      TEXT,
+    sources       TEXT NOT NULL DEFAULT '[]', -- JSON: [{"title","url"}]
+    error         TEXT,
+    created_at    DATETIME NOT NULL,
+    researched_at DATETIME,
+    UNIQUE(repo_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_topics_repo ON topics(repo_id);

@@ -47,7 +47,12 @@ jobs:
       # Race detector + coverage. The whole pipeline (ingest-seed -> analyze ->
       # generate -> library, SEO, calendar, analytics, OAuth) is exercised here
       # via the internal/server httptest integration tests.
+      #
+      # Pinned to bash (available on all runners, incl. Windows) for consistent
+      # argument parsing: PowerShell mangles `-coverprofile=coverage.out ./...`
+      # into a phantom `.out` package argument, which fails setup.
       - name: Test
+        shell: bash
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: Upload coverage
@@ -92,7 +97,7 @@ jobs:
           fi
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.5.0
           args: --timeout=5m

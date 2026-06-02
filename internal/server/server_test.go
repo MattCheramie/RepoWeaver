@@ -114,6 +114,80 @@ func TestPipelineHTTP(t *testing.T) {
 	}
 }
 
+func TestTopicResearchHTTP(t *testing.T) {
+	srv, st := newTestServer(t)
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	repo, _ := st.AddRepo("acme", "widget")
+	for i, title := range []string{"Add caching layer", "Fix flaky test"} {
+		st.UpsertItem(store.Item{
+			RepoID: repo.ID, Kind: store.KindPR, ExternalID: itoa(i),
+			Title: title, Body: "context for " + title, State: "merged",
+		})
+	}
+	st.MarkIngested(repo.ID)
+
+	// Analyze identifies topics and kicks off background research; the response
+	// includes the Topic Research section.
+	res := post(t, ts, "/repos/1/analyze", nil)
+	if !strings.Contains(res, "Topic Research") {
+		t.Fatalf("analyze response missing topics section:\n%s", res)
+	}
+	if len(mustTopics(t, st, repo.ID)) == 0 {
+		t.Fatal("no topics identified")
+	}
+
+	// The mock Researcher completes research quickly in the background.
+	ok := false
+	for i := 0; i < 250 && !ok; i++ {
+		ok = allResearched(mustTopics(t, st, repo.ID))
+		if !ok {
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	if !ok {
+		t.Fatalf("topics not researched: %#v", mustTopics(t, st, repo.ID))
+	}
+
+	// The topics fragment now shows the briefing + a Generate draft button.
+	frag := get(t, ts, "/repos/1/topics")
+	if !strings.Contains(frag, "Generate draft") {
+		t.Fatalf("topics fragment missing generate button:\n%s", frag)
+	}
+
+	// Generate a standalone draft from the first researched topic.
+	topics := mustTopics(t, st, repo.ID)
+	gen := post(t, ts, "/topics/"+itoa64(topics[0].ID)+"/generate", nil)
+	if !strings.Contains(gen, "Generated") {
+		t.Fatalf("generate from topic failed:\n%s", gen)
+	}
+	if all, _ := st.ListContent(); len(all) != 1 {
+		t.Fatalf("expected 1 standalone draft, got %d", len(all))
+	}
+}
+
+func mustTopics(t *testing.T, st *store.Store, repoID int64) []store.Topic {
+	t.Helper()
+	topics, err := st.ListTopics(repoID)
+	if err != nil {
+		t.Fatalf("list topics: %v", err)
+	}
+	return topics
+}
+
+func allResearched(topics []store.Topic) bool {
+	if len(topics) == 0 {
+		return false
+	}
+	for _, tp := range topics {
+		if tp.Status != store.TopicResearched {
+			return false
+		}
+	}
+	return true
+}
+
 // seedContent creates a repo, cluster, and one generated content row.
 func seedContent(t *testing.T, st *store.Store) store.Content {
 	t.Helper()
