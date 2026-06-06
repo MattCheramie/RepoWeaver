@@ -36,7 +36,8 @@ func TestNewSelectsProviders(t *testing.T) {
 
 func TestMockClusterJSONIsValid(t *testing.T) {
 	m := NewMock()
-	out, err := m.Complete(context.Background(), "respond with JSON only", "0] pr: a\n1] issue: b\n2] commit: c\n")
+	// Mirrors the real clustering system prompt, which asks for {"clusters":[...]}.
+	out, err := m.Complete(context.Background(), `respond with ONLY valid JSON {"clusters":[...]}`, "0] pr: a\n1] issue: b\n2] commit: c\n")
 	if err != nil {
 		t.Fatalf("complete: %v", err)
 	}

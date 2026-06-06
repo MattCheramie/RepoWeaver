@@ -28,9 +28,12 @@ func (m *Mock) Complete(_ context.Context, system, prompt string) (string, error
 		return m.seoJSON(), nil
 	case strings.Contains(low, `"topics"`):
 		return m.topicsJSON(), nil
-	case strings.Contains(low, "json"):
+	case strings.Contains(low, `"clusters"`):
 		return m.clusterJSON(prompt), nil
 	default:
+		// Content-generation prompts fall through to prose. (Detection keys off
+		// the distinctive JSON shapes above rather than the generic word "json",
+		// since generation prompts now mention JSON chart specs too.)
 		return m.prose(prompt), nil
 	}
 }
@@ -123,24 +126,29 @@ This placeholder summarizes what a real research pass would gather about **%s**.
 
 func (m *Mock) prose(prompt string) string {
 	h := sha1.Sum([]byte(prompt))
-	return fmt.Sprintf(`# Mock-Generated Content
-
-> This document was produced by RepoWeaver's **mock** LLM provider. Configure a
-> real provider (Claude, OpenAI, or Gemini) via `+"`LLM_PROVIDER`"+` and
-> `+"`LLM_API_KEY`"+` to generate genuine content.
-
-## Overview
-
-This is a placeholder article synthesized from the supplied repository context.
-A production run would weave the ingested PRs, issues, and documentation into a
-polished narrative here.
-
-## Key Points
-
-- Mock content is deterministic for reproducible tests.
-- The structure mirrors what a real generation would emit.
-- Markdown is valid and ready to download.
-
-_Context fingerprint: %x_
-`, h[:6])
+	const fence = "```"
+	return "# Mock-Generated Content\n\n" +
+		"> This document was produced by RepoWeaver's **mock** LLM provider. Configure a\n" +
+		"> real provider (Claude, OpenAI, or Gemini) via `LLM_PROVIDER` and\n" +
+		"> `LLM_API_KEY` to generate genuine content.\n\n" +
+		"## Overview\n\n" +
+		"This is a placeholder article synthesized from the supplied repository context.\n" +
+		"A production run would weave the ingested PRs, issues, and documentation into a\n" +
+		"polished narrative here.\n\n" +
+		"## Pipeline\n\n" +
+		fence + "mermaid\n" +
+		"flowchart TD\n" +
+		"  A[Ingest] --> B[Analyze]\n" +
+		"  B --> C[Generate]\n" +
+		"  C --> D[Publish]\n" +
+		fence + "\n\n" +
+		"## By the numbers\n\n" +
+		fence + "chart\n" +
+		`{"type":"bar","title":"Mock activity by item kind","data":[{"label":"PRs","value":12},{"label":"Issues","value":7},{"label":"Docs","value":4}]}` + "\n" +
+		fence + "\n\n" +
+		"## Key Points\n\n" +
+		"- Mock content is deterministic for reproducible tests.\n" +
+		"- The structure mirrors what a real generation would emit.\n" +
+		"- Markdown is valid and ready to download.\n\n" +
+		fmt.Sprintf("_Context fingerprint: %x_\n", h[:6])
 }
