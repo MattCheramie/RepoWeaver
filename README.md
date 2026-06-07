@@ -36,7 +36,7 @@ frontend) and can optionally be wrapped in a **native desktop window**.
 | **1** | **Ingestion** (the Crawler) | Pulls PRs, issues, comments, and commit messages via the GitHub API, plus static `CHANGELOG`, `docs/` files, and `.pdf` reference documents. Total capture — bots, dependency bumps, and unresolved issues included. Cached in SQLite. |
 | **2** | **Analysis** (the Brain) | An LLM maps the organic problem-solving history against the docs, clusters related items into story narratives, and runs a "salvage" pass over unresolved issues for usable snippets. |
 | **3** | **Knowledge Hub** (the Editor) | Per-repo workspace listing item counts and the LLM-generated clusters, each tagged with a target format (blog, tutorial, video script, deep dive). |
-| **4** | **Generation & SEO** (the Publisher) | Generates polished Markdown per cluster. SEO toolkit: local keyword-density analysis, URL-slug suggestions, AI-assisted meta description + semantic tags, and YAML-frontmatter export. |
+| **4** | **Generation & SEO** (the Publisher) | Generates polished Markdown per cluster. Every post gets a programmatic header/hero banner plus charts and diagrams the subject matter calls for — all rendered as self-contained inline SVG (no image hosting). SEO toolkit: local keyword-density analysis, URL-slug suggestions, AI-assisted meta description + semantic tags, and YAML-frontmatter export. |
 | **5** | **Library & Editorial Calendar** (the Planner) | Browse, preview, edit, and download generated `.md` (with or without frontmatter). A month-view calendar with **drag-and-drop** scheduling tracks `draft → scheduled → published`. |
 | **6** | **Analytics & Tracking** (the Monitor) | A performance dashboard mapping pageviews, average time on page, and bounce rate onto scheduled/published posts, with a pageviews bar chart. Pulls from **Google Analytics 4** via browser **OAuth** or a **service account**. |
 
@@ -223,6 +223,11 @@ web/
   renderer (`web/static/js/charts.js`) rather than Chart.js. It exposes the same
   data (`window.__repoweaverChart`), so swapping in Chart.js later is
   straightforward.
+- **Post visuals are programmatic.** Hero banners and in-post charts are rendered
+  to self-contained inline SVG (`internal/visual`), so they need no image hosting
+  and render anywhere. Mermaid diagrams render client-side in Preview via a
+  vendored bundle that ships as a documented stub (CDNs are blocked here); exports
+  keep native ` ```mermaid ` fences. See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#post-visuals).
 - **Live GA4** requires real credentials and outbound network; the provider
   wiring is unit-tested, but the live token exchange/report is exercised only
   against a configured account.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/mattcheramie/repoweaver/internal/analytics"
 	"github.com/mattcheramie/repoweaver/internal/llm"
+	"github.com/mattcheramie/repoweaver/internal/render"
 	"github.com/mattcheramie/repoweaver/internal/seo"
 	"github.com/mattcheramie/repoweaver/internal/store"
 )
@@ -30,6 +31,7 @@ type pageData struct {
 	Topics         []topicView
 	AnyResearching bool
 	Content        any
+	PreviewHTML    template.HTML // rendered article (hero + prose + visuals)
 	SEO            seo.Meta
 	Keywords       []seo.KeywordStat
 	Calendar       *calendarView
@@ -319,6 +321,26 @@ func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "content.html", d)
 }
 
+// handleContentPreview renders a post as it will appear once published: the
+// generated hero banner, prose, and embedded visuals (charts as inline SVG,
+// mermaid diagrams via the vendored library).
+func (s *Server) handleContentPreview(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	c, err := s.store.ContentByID(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	repo, _ := s.store.RepoByID(c.RepoID) // zero-value repo is fine for standalone drafts
+	d := s.base("Preview — "+c.Title, "library")
+	d.Content = c
+	d.PreviewHTML = render.HTML(c, repo)
+	s.render(w, "preview.html", d)
+}
+
 // handleRegenerateSEO recomputes and persists SEO metadata, returning the SEO
 // panel fragment for HTMX swap.
 func (s *Server) handleRegenerateSEO(w http.ResponseWriter, r *http.Request) {
@@ -365,7 +387,10 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	body := c.Body
+	repo, _ := s.store.RepoByID(c.RepoID)
+	// Bake the hero and chart visuals into the artifact as inline SVG so the
+	// published Markdown is self-contained — no image hosting required.
+	body := render.Markdown(c, repo)
 	// ?fm=1 prepends YAML frontmatter generated from the SEO metadata.
 	if r.URL.Query().Get("fm") == "1" {
 		body = seo.Parse(c.SEOMeta).Frontmatter(c.Title) + body

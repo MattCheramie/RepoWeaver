@@ -1,0 +1,20 @@
+{{define "content"}}
+<section class="panel">
+  <p class="preview-actions">
+    <a class="btn-link" href="/library">← Library</a>
+    <a class="btn-link" href="/content/{{.Content.ID}}">✎ Edit</a>
+    <a class="btn-link" href="/content/{{.Content.ID}}/download">⬇ Download .md</a>
+    <a class="btn-link" href="/content/{{.Content.ID}}/download?fm=1">⬇ With frontmatter</a>
+  </p>
+  <article class="rw-rendered">
+    {{.PreviewHTML}}
+  </article>
+</section>
+
+<!-- Vendored client-side renderers (preview only). Charts and the hero are
+     pre-rendered as inline SVG server-side, so they need no script. If the
+     mermaid bundle is absent the diagram source stays visible (graceful
+     degradation). -->
+<script src="/static/js/vendor/mermaid.min.js" defer></script>
+<script src="/static/js/render.js" defer></script>
+{{end}}

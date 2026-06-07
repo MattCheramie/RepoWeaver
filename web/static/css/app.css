@@ -137,6 +137,25 @@ form.inline { display: inline; }
 .cal-side { border: 1px dashed var(--border); border-radius: 8px; padding: 12px; min-height: 120px; }
 .cal-side h4 { margin-top: 0; }
 
+/* Rendered article preview */
+.preview-actions { display: flex; gap: 16px; align-items: center; margin: 0 0 16px; }
+.rw-hero { margin: 0 0 22px; }
+.rw-hero .rw-hero-svg { display: block; width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
+.rw-rendered { line-height: 1.65; }
+.rw-rendered h1, .rw-rendered h2, .rw-rendered h3 { line-height: 1.25; }
+.rw-rendered h2 { margin-top: 28px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.rw-rendered pre { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow: auto; }
+.rw-rendered code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.rw-rendered :not(pre) > code { background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.92em; }
+.rw-rendered blockquote { margin: 14px 0; padding: 4px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
+.rw-rendered a { color: var(--accent); }
+.rw-rendered table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+.rw-rendered th, .rw-rendered td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+.rw-chart { margin: 20px 0; max-width: 720px; }
+.rw-chart .rw-chart-svg { display: block; width: 100%; }
+.rw-rendered .mermaid { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin: 20px 0; overflow: auto; text-align: center; }
+.rw-visual-error { background: var(--panel-2); border: 1px dashed var(--bad); color: var(--bad); border-radius: 8px; padding: 10px 12px; margin: 16px 0; font-size: 13px; }
+
 /* Analytics dashboard */
 .chart-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 6px 0 4px; }
 .chart-box canvas { display: block; width: 100%; }

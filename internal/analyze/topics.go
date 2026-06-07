@@ -178,7 +178,23 @@ func (a *Analyzer) ResearchTopic(topicID int64) error {
 const topicGenerateSystem = `You are RepoWeaver's content generator. Produce a polished, SEO-aware piece of
 developer content in clean Markdown that teaches the given topic, grounded in the
 provided research briefing and sources. Start with an H1 title. Be concrete and
-technical. Do not include front matter; output Markdown body only.`
+technical. Do not include front matter; output Markdown body only.
+
+Use visuals to make the piece clearer. A header banner is generated
+automatically, so do not create one. Where they genuinely aid understanding,
+embed visuals as fenced code blocks and let the subject matter dictate how many
+(usually one to three):
+
+- For quantitative comparisons or trends, add a fenced code block tagged 'chart'
+  whose body is JSON of the form:
+  {"type":"bar|line|area|pie","title":"...","data":[{"label":"...","value":12}]}
+  Use only real numbers grounded in the research — never invent data. If you have
+  no real figures, omit the chart.
+- For architecture, flows, sequences, or state machines, add a fenced code block
+  tagged 'mermaid' with valid Mermaid syntax (for example flowchart TD or
+  sequenceDiagram).
+
+Place each visual next to the prose it supports.`
 
 // GenerateFromTopic creates a standalone content draft from a researched topic
 // (no cluster) and stores it. Mirrors Generate.

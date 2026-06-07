@@ -6,6 +6,7 @@ require (
 	github.com/google/go-github/v66 v66.0.0
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
+	github.com/yuin/goldmark v1.8.2
 	golang.org/x/oauth2 v0.36.0
 	modernc.org/sqlite v1.51.0
 )

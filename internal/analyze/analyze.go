@@ -110,7 +110,23 @@ func (a *Analyzer) Run(ctx context.Context, repoID int64) (int, error) {
 const generateSystem = `You are RepoWeaver's content generator. Produce a polished, SEO-aware piece
 of developer content in clean Markdown based on the provided repository
 narrative and source items. Start with an H1 title. Be concrete and technical.
-Do not include front matter; output Markdown body only.`
+Do not include front matter; output Markdown body only.
+
+Use visuals to make the piece clearer. A header banner is generated
+automatically, so do not create one. Where they genuinely aid understanding,
+embed visuals as fenced code blocks and let the subject matter dictate how many
+(usually one to three):
+
+- For quantitative comparisons or trends, add a fenced code block tagged 'chart'
+  whose body is JSON of the form:
+  {"type":"bar|line|area|pie","title":"...","data":[{"label":"...","value":12}]}
+  Use only real numbers grounded in the source items — never invent data. If you
+  have no real figures, omit the chart.
+- For architecture, request/response flows, sequences, or state machines, add a
+  fenced code block tagged 'mermaid' with valid Mermaid syntax (for example
+  flowchart TD or sequenceDiagram).
+
+Place each visual next to the prose it supports.`
 
 // Generate produces Markdown content for a single cluster and stores it.
 func (a *Analyzer) Generate(ctx context.Context, clusterID int64) (int64, error) {

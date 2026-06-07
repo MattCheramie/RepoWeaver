@@ -99,8 +99,13 @@ func TestPipelineHTTP(t *testing.T) {
 		t.Fatalf("expected .md attachment, got %q", cd)
 	}
 	md, _ := io.ReadAll(resp.Body)
-	if !strings.HasPrefix(string(md), "#") {
-		t.Fatalf("expected markdown body, got %.40q", md)
+	// The export bakes in a hero banner as inline SVG (no image hosting), then
+	// the Markdown body.
+	if !strings.HasPrefix(string(md), "<svg") {
+		t.Fatalf("expected exported markdown to start with the inline hero SVG, got %.40q", md)
+	}
+	if !strings.Contains(string(md), "# Mock-Generated Content") {
+		t.Fatalf("expected the markdown body to follow the hero, got %.80q", md)
 	}
 
 	// Save edits to the content body.

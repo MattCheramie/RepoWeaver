@@ -49,10 +49,35 @@ data model. Source map:
 ```
 main.go, shell_web.go, shell_desktop.go   entrypoint + web/desktop shells
 internal/{config,store,ingest,llm,analyze,seo,analytics,server}
+internal/visual                            deterministic inline-SVG hero + charts
+internal/render                            body -> preview HTML / portable Markdown
 web/{templates,static}                     embedded UI
 packaging/repoweaver.desktop               Linux launcher (release archives)
 scripts/dist.sh                            release packaging
 ```
+
+## Post visuals
+
+Every generated post carries a header/hero banner, and the LLM embeds charts and
+diagrams where the subject matter calls for them (a per-post count it chooses).
+Visuals are **programmatic** — there is no image hosting:
+
+- **Hero + charts** are rendered to self-contained inline `<svg>` by
+  `internal/visual` (deterministic, seeded by title), so they appear identically
+  in the in-app Preview and in exported Markdown, and render on GitHub/static-site
+  generators with zero JavaScript.
+- **Authoring syntax** (emitted by the generation prompts): a fenced ` ```chart `
+  block holding JSON `{"type":"bar|line|area|pie","title":"…","data":[{"label":"…","value":N}]}`,
+  and a fenced ` ```mermaid ` block of Mermaid diagram source.
+- `internal/render.HTML` powers `GET /content/{id}/preview`; `internal/render.Markdown`
+  powers the `.md` download (hero + charts baked in as inline SVG; ` ```mermaid `
+  fences preserved for native rendering).
+
+**Vendoring Mermaid (optional):** Mermaid diagrams render client-side in Preview
+via `web/static/js/vendor/mermaid.min.js`, which ships as a documented stub because
+this environment's network allowlist blocks CDNs (see `web/static/js/charts.js`).
+Drop the real bundle in to enable it; until then Preview shows the diagram source
+and exports keep native ` ```mermaid ` fences — nothing else depends on it.
 
 ## HTTP routes
 
@@ -64,7 +89,8 @@ scripts/dist.sh                            release packaging
 | `POST /repos/{id}/analyze` | analyze | Run clustering; returns the `clusters` fragment. |
 | `POST /clusters/{id}/generate` | generate | Generate Markdown + SEO for a cluster. |
 | `GET /library` | library | All generated content. |
-| `GET /content/{id}` | view | Preview/edit a content item + SEO panel. |
+| `GET /content/{id}` | view | Edit a content item + SEO panel. |
+| `GET /content/{id}/preview` | preview | Rendered article: hero banner + prose + embedded visuals. |
 | `POST /content/{id}` | save | Save edited Markdown body. |
 | `POST /content/{id}/seo` | recompute SEO | Returns the `seo-panel` fragment. |
 | `POST /content/{id}/schedule` | schedule | Set/clear publish date; returns `calendar-root`. |
